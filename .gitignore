@@ -1,0 +1,14 @@
+# dub build artifacts
+.dub/
+dub.selections.json
+*.o
+*.a
+*.so
+*.dylib
+
+# dub generated test/build binaries
+*-test-library
+rtmp-server
+
+# generated documents
+docs/
