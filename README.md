@@ -2,7 +2,7 @@
 
 > **Status: Experimental** — This project is under active development. API may change without notice and is not yet ready for production use.
 
-RTMP 1.0 protocol library for D.
+A [RTMP 1.0 protocol](https://veovera.github.io/enhanced-rtmp/docs/legacy/rtmp-v1-0-spec.pdf) library for D.
 
 ## Features
 
