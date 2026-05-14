@@ -28,7 +28,7 @@ class Stream {
             return;
         auto writer = ChunkWriter();
         writer.setChunkSize(4096);
-        uint csid = (typeId == MessageTypeId.audio) ? AUDIO_CSID : VIDEO_CSID;
+        const csid = (typeId == MessageTypeId.audio) ? AUDIO_CSID : VIDEO_CSID;
         auto msg = RtmpMessage(typeId: typeId, streamId: 1, timestamp: timestamp, payload: payload.dup);
         auto encoded = writer.writeMessage(csid, msg);
         foreach (sub; subscribers_)
@@ -79,7 +79,9 @@ class StreamManager {
             auto eof = UserControlEvent(eventType: UserControlEventType.streamEOF, streamId: 1);
             auto payload = encodeUserControl(eof);
             auto writer = ChunkWriter();
-            auto msg = RtmpMessage(typeId: cast(ubyte) MessageTypeId.userControl, streamId: 0, timestamp: 0, payload: payload);
+            auto msg = RtmpMessage(
+                typeId: cast(ubyte) MessageTypeId.userControl,
+                streamId: 0, timestamp: 0, payload: payload);
             auto encoded = writer.writeMessage(PROTOCOL_CHUNK_STREAM_ID, msg);
             foreach (sub; stream.subscribers_)
                 sub.enqueueMedia(encoded);

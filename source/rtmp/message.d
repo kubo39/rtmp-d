@@ -69,7 +69,7 @@ SetChunkSize decodeSetChunkSize(const(ubyte)[] payload) {
     if (payload.length < 4)
         throw new MessageException("SetChunkSize payload too short");
     ubyte[4] bytes = payload[0 .. 4];
-    uint val = bigEndianToNative!uint(bytes) & 0x7FFFFFFF;
+    const val = bigEndianToNative!uint(bytes) & 0x7FFFFFFF;
     return SetChunkSize(val);
 }
 
@@ -170,7 +170,7 @@ UserControlEvent decodeUserControl(const(ubyte)[] payload) {
     ubyte[2] typeBytes = payload[0 .. 2];
     auto eventType = cast(UserControlEventType) bigEndianToNative!ushort(typeBytes);
     ubyte[4] data1 = payload[2 .. 6];
-    uint val1 = bigEndianToNative!uint(data1);
+    const val1 = bigEndianToNative!uint(data1);
 
     auto ev = UserControlEvent(eventType: eventType);
 
@@ -375,39 +375,43 @@ RtmpMessage makeProtocolControlMessage(ubyte typeId, uint timestamp, const(ubyte
     return RtmpMessage(typeId: typeId, streamId: 0, timestamp: timestamp, payload: payload.dup);
 }
 
-RtmpMessage makeCommandRtmpMessage(uint streamId, uint timestamp, const(ubyte)[] payload) {
-    return RtmpMessage(typeId: MessageTypeId.commandAmf0, streamId: streamId, timestamp: timestamp, payload: payload.dup);
+RtmpMessage makeCommandRtmpMessage(
+    uint streamId, uint timestamp, const(ubyte)[] payload
+) {
+    return RtmpMessage(
+        typeId: MessageTypeId.commandAmf0,
+        streamId: streamId, timestamp: timestamp, payload: payload.dup);
 }
 
 // Protocol Control Messages round-trip
 unittest {
-    auto scs = decodeSetChunkSize(encodeSetChunkSize(4096));
+    const scs = decodeSetChunkSize(encodeSetChunkSize(4096));
     assert(scs.chunkSize == 4096);
 
     // Bit 31 masked off
-    auto scs2 = decodeSetChunkSize(encodeSetChunkSize(0xFFFFFFFF));
+    const scs2 = decodeSetChunkSize(encodeSetChunkSize(0xFFFFFFFF));
     assert(scs2.chunkSize == 0x7FFFFFFF);
 }
 
 unittest {
-    auto ab = decodeAbort(encodeAbort(42));
+    const ab = decodeAbort(encodeAbort(42));
     assert(ab.chunkStreamId == 42);
 }
 
 unittest {
-    auto ack = decodeAcknowledgement(encodeAcknowledgement(123456));
-    assert(ack.sequenceNumber == 123456);
+    const ack = decodeAcknowledgement(encodeAcknowledgement(123_456));
+    assert(ack.sequenceNumber == 123_456);
 }
 
 unittest {
-    auto was = decodeWindowAckSize(encodeWindowAckSize(2500000));
-    assert(was.size == 2500000);
+    const was = decodeWindowAckSize(encodeWindowAckSize(2_500_000));
+    assert(was.size == 2_500_000);
 }
 
 unittest {
-    auto spb = decodeSetPeerBandwidth(
-        encodeSetPeerBandwidth(5000000, BandwidthLimitType.dynamic));
-    assert(spb.windowSize == 5000000);
+    const spb = decodeSetPeerBandwidth(
+        encodeSetPeerBandwidth(5_000_000, BandwidthLimitType.dynamic));
+    assert(spb.windowSize == 5_000_000);
     assert(spb.limitType == BandwidthLimitType.dynamic);
 }
 
@@ -415,7 +419,7 @@ unittest {
 unittest {
     auto ev = UserControlEvent(UserControlEventType.streamBegin);
     ev.streamId = 1;
-    auto decoded = decodeUserControl(encodeUserControl(ev));
+    const decoded = decodeUserControl(encodeUserControl(ev));
     assert(decoded.eventType == UserControlEventType.streamBegin);
     assert(decoded.streamId == 1);
 }
@@ -424,7 +428,7 @@ unittest {
     auto ev = UserControlEvent(UserControlEventType.setBufferLength);
     ev.streamId = 1;
     ev.bufferLength = 3000;
-    auto decoded = decodeUserControl(encodeUserControl(ev));
+    const decoded = decodeUserControl(encodeUserControl(ev));
     assert(decoded.eventType == UserControlEventType.setBufferLength);
     assert(decoded.streamId == 1);
     assert(decoded.bufferLength == 3000);
@@ -432,10 +436,10 @@ unittest {
 
 unittest {
     auto ev = UserControlEvent(UserControlEventType.pingRequest);
-    ev.timestamp = 12345;
-    auto decoded = decodeUserControl(encodeUserControl(ev));
+    ev.timestamp = 12_345;
+    const decoded = decodeUserControl(encodeUserControl(ev));
     assert(decoded.eventType == UserControlEventType.pingRequest);
-    assert(decoded.timestamp == 12345);
+    assert(decoded.timestamp == 12_345);
 }
 
 // Command Messages
@@ -466,7 +470,7 @@ unittest {
     auto cmd = CommandMessage("createStream", 2.0, AmfValue.null_(), []);
     auto decoded = decodeCommand(encodeCommand(cmd));
     assert(decoded.commandName == "createStream");
-    auto cs = decodeCreateStream(decoded);
+    const cs = decodeCreateStream(decoded);
     assert(cs.transactionId == 2.0);
 }
 
@@ -476,7 +480,7 @@ unittest {
         AmfValue("mystream"), AmfValue("live"),
     ]);
     auto decoded = decodeCommand(encodeCommand(cmd));
-    auto pub = decodePublish(decoded);
+    const pub = decodePublish(decoded);
     assert(pub.publishingName == "mystream");
     assert(pub.publishingType == PublishingType.live);
 }
@@ -487,7 +491,7 @@ unittest {
         AmfValue("stream1"), AmfValue(0.0), AmfValue(-1.0), AmfValue(false),
     ]);
     auto decoded = decodeCommand(encodeCommand(cmd));
-    auto play = decodePlay(decoded);
+    const play = decodePlay(decoded);
     assert(play.streamName == "stream1");
     assert(play.start == 0.0);
     assert(play.duration == -1.0);
@@ -500,7 +504,7 @@ unittest {
         AmfValue(1.0),
     ]);
     auto decoded = decodeCommand(encodeCommand(cmd));
-    auto del = decodeDeleteStream(decoded);
+    const del = decodeDeleteStream(decoded);
     assert(del.streamId == 1.0);
 }
 
@@ -515,7 +519,7 @@ unittest {
         AmfKeyValue("level", AmfValue("status")),
     ]));
     auto encoded = encodeResultResponse(1.0, props, info);
-    auto decoded = decodeCommand(encoded);
+    const decoded = decodeCommand(encoded);
     assert(decoded.commandName == "_result");
     assert(decoded.transactionId == 1.0);
 }
@@ -544,7 +548,7 @@ unittest {
         ])),
     ]);
     auto encoded = encodeDataMessage(dm);
-    auto decoded = decodeDataMessage(encoded);
+    const decoded = decodeDataMessage(encoded);
     assert(decoded.handler == "@setDataFrame");
     assert(decoded.values.length == 2);
     assert(decoded.values[0] == AmfValue("onMetaData"));

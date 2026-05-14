@@ -71,7 +71,7 @@ struct ServerHandshake {
             return HandshakeResult.needMoreData();
 
         // C0: version check
-        ubyte version_ = buffer_[0];
+        const version_ = buffer_[0];
         if (version_ != RTMP_VERSION)
             throw new HandshakeException(
                 "unsupported RTMP version: " ~ formatUbyte(version_));
@@ -87,7 +87,7 @@ struct ServerHandshake {
         response ~= RTMP_VERSION;
 
         // S1: time(4) + zero(4) + random(1528)
-        uint s1Time = currentTime();
+        const s1Time = currentTime();
         s1Data_[0 .. 4] = nativeToBigEndian(s1Time)[];
         s1Data_[4 .. 8] = [0, 0, 0, 0];
         generateRandom(s1Data_[8 .. HANDSHAKE_SIZE]);
@@ -98,7 +98,7 @@ struct ServerHandshake {
         // time: copy C1's timestamp
         s2[0 .. 4] = c1Data_[0 .. 4];
         // time2: timestamp when C1 was read (§5.2.4)
-        uint c1ReadTime = currentTime();
+        const c1ReadTime = currentTime();
         s2[4 .. 8] = nativeToBigEndian(c1ReadTime)[];
         // random echo: copy C1's random data
         s2[8 .. HANDSHAKE_SIZE] = c1Data_[8 .. HANDSHAKE_SIZE];
@@ -115,7 +115,7 @@ struct ServerHandshake {
             return HandshakeResult.needMoreData();
 
         // Validate C2: random echo should match S1's random data
-        auto c2RandomEcho = buffer_[8 .. HANDSHAKE_SIZE];
+        const c2RandomEcho = buffer_[8 .. HANDSHAKE_SIZE];
         if (c2RandomEcho != s1Data_[8 .. HANDSHAKE_SIZE])
             throw new HandshakeException("C2 random echo mismatch");
 
@@ -163,7 +163,7 @@ struct ClientHandshake {
         packet ~= RTMP_VERSION;
 
         // C1: time(4) + zero(4) + random(1528)
-        uint clientTime = currentTime();
+        const clientTime = currentTime();
         c1Data_[0 .. 4] = nativeToBigEndian(clientTime)[];
         c1Data_[4 .. 8] = [0, 0, 0, 0];
         generateRandom(c1Data_[8 .. HANDSHAKE_SIZE]);
@@ -193,7 +193,7 @@ struct ClientHandshake {
             return HandshakeResult.needMoreData();
 
         // S0: version check
-        ubyte version_ = buffer_[0];
+        const version_ = buffer_[0];
         if (version_ != RTMP_VERSION)
             throw new HandshakeException(
                 "unsupported RTMP version: " ~ formatUbyte(version_));
@@ -203,7 +203,7 @@ struct ClientHandshake {
 
         // S2: validate random echo matches C1
         auto s2 = buffer_[1 + HANDSHAKE_SIZE .. 1 + HANDSHAKE_SIZE * 2];
-        auto s2RandomEcho = s2[8 .. HANDSHAKE_SIZE];
+        const s2RandomEcho = s2[8 .. HANDSHAKE_SIZE];
         if (s2RandomEcho != c1Data_[8 .. HANDSHAKE_SIZE])
             throw new HandshakeException("S2 random echo mismatch");
 
@@ -213,7 +213,7 @@ struct ClientHandshake {
         // time: S1's timestamp
         c2[0 .. 4] = s1[0 .. 4];
         // time2: timestamp when S1 was read (§5.2.4)
-        uint clientTime = currentTime();
+        const clientTime = currentTime();
         c2[4 .. 8] = nativeToBigEndian(clientTime)[];
         // random echo: S1's random data
         c2[8 .. HANDSHAKE_SIZE] = s1[8 .. HANDSHAKE_SIZE];
@@ -273,7 +273,7 @@ unittest {
     assert(client.done);
 
     // Server processes C2
-    auto serverFinal = server.processBytes(clientResult.data);
+    const serverFinal = server.processBytes(clientResult.data);
     assert(serverFinal.kind == HandshakeResult.Kind.done);
     assert(server.done);
 }
@@ -299,7 +299,7 @@ unittest {
         if (result.kind != HandshakeResult.Kind.needMoreData)
             break;
     }
-    assert(i == c0c1.length - 1); // response on last byte
+    assert(i + 1 == c0c1.length); // response on last byte
     assert(result.kind == HandshakeResult.Kind.sendData);
 }
 
@@ -316,7 +316,7 @@ unittest {
 unittest {
     import std.exception : assertThrown;
     auto client = ClientHandshake.create();
-    auto c0c1 = client.generateC0C1();
+    client.generateC0C1();
 
     ubyte[] badS0S1S2;
     badS0S1S2.length = 1 + HANDSHAKE_SIZE * 2;
@@ -335,7 +335,7 @@ unittest {
     c1[] = 0x42;
     c0c1 ~= c1[];
 
-    auto result = server.processBytes(c0c1);
+    const result = server.processBytes(c0c1);
     assert(result.kind == HandshakeResult.Kind.sendData);
 
     ubyte[HANDSHAKE_SIZE] badC2;
@@ -347,7 +347,7 @@ unittest {
 unittest {
     import std.exception : assertThrown;
     auto client = ClientHandshake.create();
-    auto c0c1 = client.generateC0C1();
+    client.generateC0C1();
 
     ubyte[] s0s1s2;
     s0s1s2 ~= RTMP_VERSION; // S0
@@ -368,7 +368,7 @@ unittest {
 
     auto c0c1 = client.generateC0C1();
     auto serverResult = server.processBytes(c0c1);
-    auto clientResult = client.processBytes(serverResult.data);
+    const clientResult = client.processBytes(serverResult.data);
 
     // Append extra bytes after C2
     ubyte[] c2WithExtra = clientResult.data.dup ~ [ubyte(0xDE), ubyte(0xAD)];
@@ -380,8 +380,8 @@ unittest {
 unittest {
     // Time source delegate is called
     uint callCount = 0;
-    auto server = ServerHandshake(() { callCount++; return uint(12345); });
-    auto client = ClientHandshake(() { return uint(67890); });
+    auto server = ServerHandshake(() { callCount++; return uint(12_345); });
+    auto client = ClientHandshake(() { return uint(67_890); });
 
     auto c0c1 = client.generateC0C1();
     server.processBytes(c0c1);

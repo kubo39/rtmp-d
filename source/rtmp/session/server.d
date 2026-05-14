@@ -7,8 +7,8 @@ import rtmp.chunk;
 import rtmp.message;
 import rtmp.session.handler;
 private enum SERVER_CHUNK_SIZE = 4096;
-private enum DEFAULT_WINDOW_ACK_SIZE = 2500000;
-private enum DEFAULT_PEER_BANDWIDTH = 2500000;
+private enum DEFAULT_WINDOW_ACK_SIZE = 2_500_000;
+private enum DEFAULT_PEER_BANDWIDTH = 2_500_000;
 
 struct ServerSession {
     private enum State {
@@ -150,7 +150,7 @@ struct ServerSession {
         auto output = Appender!(ubyte[])();
         auto connectCmd = decodeConnect(cmd);
 
-        bool accepted = handler_ is null || handler_.onConnect(connectCmd);
+        const accepted = handler_ is null || handler_.onConnect(connectCmd);
 
         if (!accepted) {
             auto info = AmfValue(AmfObject([
@@ -196,7 +196,7 @@ struct ServerSession {
 
     private ubyte[] handleCreateStream(CommandMessage cmd, uint msgStreamId) {
         auto cs = decodeCreateStream(cmd);
-        uint newStreamId = nextStreamId_++;
+        const newStreamId = nextStreamId_++;
 
         if (handler_ !is null)
             handler_.onCreateStream(newStreamId);
@@ -225,7 +225,9 @@ struct ServerSession {
             handler_.onPlay(msgStreamId, play);
 
         // §7.2.2.1: StreamIsRecorded
-        auto streamIsRecorded = UserControlEvent(eventType: UserControlEventType.streamIsRecorded, streamId: msgStreamId);
+        auto streamIsRecorded = UserControlEvent(
+            eventType: UserControlEventType.streamIsRecorded,
+            streamId: msgStreamId);
         output ~= writeProtocolControl(MessageTypeId.userControl,
             encodeUserControl(streamIsRecorded));
 
@@ -261,12 +263,16 @@ struct ServerSession {
     }
 
     private ubyte[] writeProtocolControl(MessageTypeId typeId, ubyte[] payload) {
-        auto msg = RtmpMessage(typeId: cast(ubyte) typeId, streamId: 0, timestamp: 0, payload: payload);
+        auto msg = RtmpMessage(
+            typeId: cast(ubyte) typeId,
+            streamId: 0, timestamp: 0, payload: payload);
         return writer_.writeMessage(PROTOCOL_CHUNK_STREAM_ID, msg);
     }
 
     private ubyte[] writeCommand(uint streamId, ubyte[] payload) {
-        auto msg = RtmpMessage(typeId: cast(ubyte) MessageTypeId.commandAmf0, streamId: streamId, timestamp: 0, payload: payload);
+        auto msg = RtmpMessage(
+            typeId: cast(ubyte) MessageTypeId.commandAmf0,
+            streamId: streamId, timestamp: 0, payload: payload);
         return writer_.writeMessage(COMMAND_CSID, msg);
     }
 }
@@ -344,7 +350,7 @@ unittest {
     auto hsResult = clientHS.processBytes(s0s1s2);
     assert(hsResult.kind == HandshakeResult.Kind.sendData);
 
-    auto afterC2 = server.processBytes(hsResult.data);
+    server.processBytes(hsResult.data);
 
     // Connect
     auto connectPayload = encodeCommand(CommandMessage(
@@ -367,7 +373,7 @@ unittest {
     assert(responses[3].typeId == MessageTypeId.userControl);
     assert(responses[4].typeId == MessageTypeId.commandAmf0);
 
-    auto resultCmd = decodeCommand(responses[4].payload);
+    const resultCmd = decodeCommand(responses[4].payload);
     assert(resultCmd.commandName == "_result");
     assert(resultCmd.transactionId == 1.0);
 
@@ -396,7 +402,7 @@ unittest {
 
     auto pubMessages = parseResponse(clientReader, pubResponse);
     assert(pubMessages.length == 1);
-    auto statusCmd = decodeCommand(pubMessages[0].payload);
+    const statusCmd = decodeCommand(pubMessages[0].payload);
     assert(statusCmd.commandName == "onStatus");
 }
 
@@ -424,7 +430,7 @@ unittest {
     auto response = server.processBytes(connectChunks);
     auto messages = parseResponse(clientReader, response);
     assert(messages.length == 1);
-    auto cmd = decodeCommand(messages[0].payload);
+    const cmd = decodeCommand(messages[0].payload);
     assert(cmd.commandName == "_error");
     assert(!server.isReady);
 }
@@ -453,7 +459,7 @@ unittest {
 
     // Send PingRequest
     auto pingEv = UserControlEvent(UserControlEventType.pingRequest);
-    pingEv.timestamp = 12345;
+    pingEv.timestamp = 12_345;
     auto pingPayload = encodeUserControl(pingEv);
     auto pingChunks = clientWriter.writeMessage(PROTOCOL_CHUNK_STREAM_ID,
         RtmpMessage(cast(ubyte) MessageTypeId.userControl, 0, 0, pingPayload));
@@ -462,9 +468,9 @@ unittest {
     auto msgs = parseResponse(clientReader, pingResponse);
     assert(msgs.length == 1);
     assert(msgs[0].typeId == MessageTypeId.userControl);
-    auto pong = decodeUserControl(msgs[0].payload);
+    const pong = decodeUserControl(msgs[0].payload);
     assert(pong.eventType == UserControlEventType.pingResponse);
-    assert(pong.timestamp == 12345);
+    assert(pong.timestamp == 12_345);
 }
 
 // Audio/Video forwarding to handler
@@ -576,16 +582,16 @@ unittest {
     // StreamIsRecorded + StreamBegin + Play.Reset + Play.Start
     assert(playMsgs.length == 4);
     assert(playMsgs[0].typeId == MessageTypeId.userControl);
-    auto isRecorded = decodeUserControl(playMsgs[0].payload);
+    const isRecorded = decodeUserControl(playMsgs[0].payload);
     assert(isRecorded.eventType == UserControlEventType.streamIsRecorded);
     assert(playMsgs[1].typeId == MessageTypeId.userControl);
-    auto begin = decodeUserControl(playMsgs[1].payload);
+    const begin = decodeUserControl(playMsgs[1].payload);
     assert(begin.eventType == UserControlEventType.streamBegin);
     assert(playMsgs[2].typeId == MessageTypeId.commandAmf0);
-    auto resetCmd = decodeCommand(playMsgs[2].payload);
+    const resetCmd = decodeCommand(playMsgs[2].payload);
     assert(resetCmd.commandName == "onStatus");
     assert(playMsgs[3].typeId == MessageTypeId.commandAmf0);
-    auto startCmd = decodeCommand(playMsgs[3].payload);
+    const startCmd = decodeCommand(playMsgs[3].payload);
     assert(startCmd.commandName == "onStatus");
 }
 
@@ -622,7 +628,7 @@ unittest {
     auto delChunks = clientWriter.writeMessage(3,
         RtmpMessage(cast(ubyte) MessageTypeId.commandAmf0, 0, 0, delPayload));
 
-    auto delResponse = server.processBytes(delChunks);
+    server.processBytes(delChunks);
     assert(handler.lastDeletedStream == 1);
 }
 
@@ -649,7 +655,7 @@ unittest {
     assert(server.isReady);
     auto msgs = parseResponse(clientReader, response);
     assert(msgs.length == 5);
-    auto resultCmd = decodeCommand(msgs[4].payload);
+    const resultCmd = decodeCommand(msgs[4].payload);
     assert(resultCmd.commandName == "_result");
 }
 

@@ -63,6 +63,15 @@ struct AmfObject {
         }
         return true;
     }
+
+    size_t toHash() const nothrow @safe {
+        size_t h = 0;
+        foreach (ref e; entries_) {
+            h ^= hashOf(e.key);
+            h ^= hashOf(e.value.kind);
+        }
+        return h;
+    }
 }
 
 struct AmfValue {
@@ -129,6 +138,25 @@ struct AmfValue {
             case Kind.null_: return true;
             case Kind.undefined: return true;
         }
+    }
+
+    size_t toHash() const nothrow @safe {
+        size_t h = hashOf(kind);
+        final switch (kind) {
+            case Kind.number: h ^= hashOf(number_); break;
+            case Kind.boolean: h ^= hashOf(boolean_); break;
+            case Kind.string_: h ^= hashOf(str_); break;
+            case Kind.longString: h ^= hashOf(str_); break;
+            case Kind.object: h ^= object_.toHash(); break;
+            case Kind.ecmaArray: h ^= object_.toHash(); break;
+            case Kind.strictArray:
+                foreach (ref v; array_)
+                    h ^= v.toHash();
+                break;
+            case Kind.null_: break;
+            case Kind.undefined: break;
+        }
+        return h;
     }
 }
 
@@ -294,7 +322,7 @@ private bool decodeBoolean(const(ubyte)[] data, ref size_t pos) {
 private string decodeUtf8String(const(ubyte)[] data, ref size_t pos) {
     ensureAvailable(data, pos, 2);
     ubyte[2] lenBytes = data[pos .. pos + 2];
-    ushort len = bigEndianToNative!ushort(lenBytes);
+    const len = bigEndianToNative!ushort(lenBytes);
     pos += 2;
     ensureAvailable(data, pos, len);
     auto str = cast(string) data[pos .. pos + len].dup;
@@ -305,7 +333,7 @@ private string decodeUtf8String(const(ubyte)[] data, ref size_t pos) {
 private string decodeLongUtf8String(const(ubyte)[] data, ref size_t pos) {
     ensureAvailable(data, pos, 4);
     ubyte[4] lenBytes = data[pos .. pos + 4];
-    uint len = bigEndianToNative!uint(lenBytes);
+    const len = bigEndianToNative!uint(lenBytes);
     pos += 4;
     ensureAvailable(data, pos, len);
     auto str = cast(string) data[pos .. pos + len].dup;
@@ -337,7 +365,7 @@ private AmfValue decodeEcmaArray(const(ubyte)[] data, ref size_t pos) {
 private AmfValue decodeStrictArray(const(ubyte)[] data, ref size_t pos) {
     ensureAvailable(data, pos, 4);
     ubyte[4] lenBytes = data[pos .. pos + 4];
-    uint count = bigEndianToNative!uint(lenBytes);
+    const count = bigEndianToNative!uint(lenBytes);
     pos += 4;
     AmfValue[] elements;
     elements.reserve(count);
@@ -381,7 +409,7 @@ unittest {
     // Number round-trip
     auto numVal = AmfValue(42.5);
     auto encoded = encode(numVal);
-    auto decoded = decode(encoded);
+    const decoded = decode(encoded);
     assert(decoded.value == numVal);
     assert(decoded.bytesConsumed == encoded.length);
 }
@@ -420,7 +448,7 @@ unittest {
         AmfKeyValue("tcUrl", AmfValue("rtmp://localhost/live")),
     ]);
     auto objVal = AmfValue(obj);
-    auto decoded = decode(encode(objVal));
+    const decoded = decode(encode(objVal));
     assert(decoded.value == objVal);
 }
 
@@ -445,7 +473,7 @@ unittest {
         AmfKeyValue("width", AmfValue(1280.0)),
     ]);
     auto ecma = AmfValue.ecmaArray(obj);
-    auto decoded = decode(encode(ecma));
+    const decoded = decode(encode(ecma));
     assert(decoded.value.kind == AmfValue.Kind.ecmaArray);
     assert(decoded.value.object == obj);
 }
@@ -463,10 +491,10 @@ unittest {
 unittest {
     // Long String round-trip
     char[] longChars;
-    longChars.length = 70000;
+    longChars.length = 70_000;
     longChars[] = 'x';
     auto longStr = AmfValue.longString(cast(string) longChars);
-    auto decoded = decode(encode(longStr));
+    const decoded = decode(encode(longStr));
     assert(decoded.value.kind == AmfValue.Kind.longString);
     assert(decoded.value.str == longStr.str);
 }

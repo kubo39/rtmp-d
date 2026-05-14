@@ -27,8 +27,7 @@ struct ChunkBasicHeader {
     }
 }
 
-/// Returns null slice on insufficient data.
-const(ubyte)[] writeBasicHeader(ref Appender!(ubyte[]) buf, ChunkBasicHeader h) {
+void writeBasicHeader(ref Appender!(ubyte[]) buf, ChunkBasicHeader h) {
     ubyte fmtBits = cast(ubyte)(h.fmt << 6);
     if (h.chunkStreamId <= 63 && h.chunkStreamId >= 2) {
         buf ~= cast(ubyte)(fmtBits | h.chunkStreamId);
@@ -37,11 +36,10 @@ const(ubyte)[] writeBasicHeader(ref Appender!(ubyte[]) buf, ChunkBasicHeader h) 
         buf ~= cast(ubyte)(h.chunkStreamId - 64);
     } else {
         buf ~= cast(ubyte)(fmtBits | 1); // cs id field = 1
-        uint id = h.chunkStreamId - 64;
+        const id = h.chunkStreamId - 64;
         buf ~= cast(ubyte)(id & 0xFF);
         buf ~= cast(ubyte)((id >> 8) & 0xFF);
     }
-    return null;
 }
 
 struct BasicHeaderResult {
@@ -53,7 +51,7 @@ BasicHeaderResult readBasicHeader(const(ubyte)[] data) {
     if (data.length < 1)
         throw new ChunkException("not enough data for basic header");
 
-    ubyte first = data[0];
+    const first = data[0];
     ubyte fmt = cast(ubyte)(first >> 6);
     uint csid = first & 0x3F;
 
@@ -131,10 +129,10 @@ MessageHeaderResult readMessageHeader(const(ubyte)[] data, ubyte fmt,
 }
 
 void writeMessageHeader(ref Appender!(ubyte[]) buf, ubyte fmt, const ChunkMessageHeader h) {
-    bool useExtended = h.timestamp >= EXTENDED_TIMESTAMP_SENTINEL;
+    const useExtended = h.timestamp >= EXTENDED_TIMESTAMP_SENTINEL;
 
     if (fmt <= 2) {
-        uint tsField = useExtended ? EXTENDED_TIMESTAMP_SENTINEL : h.timestamp;
+        const tsField = useExtended ? EXTENDED_TIMESTAMP_SENTINEL : h.timestamp;
         write24(buf, tsField);
     }
     if (fmt <= 1) {
@@ -237,7 +235,7 @@ struct ChunkReader {
 
         // How much payload to read for this chunk
         uint remaining_msg = resolved.messageLength - cast(uint) state.payload.length;
-        uint chunkPayloadSize = remaining_msg > chunkSize_ ? chunkSize_ : remaining_msg;
+        const chunkPayloadSize = remaining_msg > chunkSize_ ? chunkSize_ : remaining_msg;
 
         // Check we have enough data
         if (buffer_.length < headerSize + chunkPayloadSize)
@@ -375,7 +373,7 @@ struct ChunkWriter {
         if (!state.hasPrevious)
             return 0;
 
-        auto prev = &state.lastHeader;
+        const prev = &state.lastHeader;
         if (h.messageStreamId != prev.messageStreamId)
             return 0;
         // §5.3.1.2.1: timestamp delta cannot be represented when timestamp goes backward
@@ -421,7 +419,7 @@ unittest {
         foreach (ubyte fmt; 0 .. 4) {
             auto buf = Appender!(ubyte[])();
             writeBasicHeader(buf, ChunkBasicHeader(fmt, csid));
-            auto result = readBasicHeader(buf[]);
+            const result = readBasicHeader(buf[]);
             assert(result.header.fmt == fmt);
             assert(result.header.chunkStreamId == csid);
             assert(result.bytesConsumed == buf[].length);
@@ -432,7 +430,7 @@ unittest {
     testBasicHeader(64);  // 2-byte: minimum
     testBasicHeader(319); // 2-byte: maximum
     testBasicHeader(320); // 3-byte: minimum
-    testBasicHeader(65599); // 3-byte: maximum
+    testBasicHeader(65_599); // 3-byte: maximum
 }
 
 // Message header fmt 0 round-trip
@@ -440,7 +438,7 @@ unittest {
     auto h = ChunkMessageHeader(1000, 256, 9, 1, false);
     auto buf = Appender!(ubyte[])();
     writeMessageHeader(buf, 0, h);
-    auto result = readMessageHeader(buf[], 0);
+    const result = readMessageHeader(buf[], 0);
     assert(result.header.timestamp == 1000);
     assert(result.header.messageLength == 256);
     assert(result.header.messageTypeId == 9);
@@ -452,7 +450,7 @@ unittest {
     auto h = ChunkMessageHeader(500, 128, 8, 0, false);
     auto buf = Appender!(ubyte[])();
     writeMessageHeader(buf, 1, h);
-    auto result = readMessageHeader(buf[], 1);
+    const result = readMessageHeader(buf[], 1);
     assert(result.header.timestamp == 500);
     assert(result.header.messageLength == 128);
     assert(result.header.messageTypeId == 8);
@@ -463,13 +461,13 @@ unittest {
     auto h = ChunkMessageHeader(100, 0, 0, 0, false);
     auto buf = Appender!(ubyte[])();
     writeMessageHeader(buf, 2, h);
-    auto result = readMessageHeader(buf[], 2);
+    const result = readMessageHeader(buf[], 2);
     assert(result.header.timestamp == 100);
 }
 
 // Message header fmt 3 (empty)
 unittest {
-    auto result = readMessageHeader([], 3);
+    const result = readMessageHeader([], 3);
     assert(result.bytesConsumed == 0);
 }
 
@@ -478,7 +476,7 @@ unittest {
     auto h = ChunkMessageHeader(0x1000000, 100, 9, 1, false);
     auto buf = Appender!(ubyte[])();
     writeMessageHeader(buf, 0, h);
-    auto result = readMessageHeader(buf[], 0);
+    const result = readMessageHeader(buf[], 0);
     assert(result.header.timestamp == 0x1000000);
     assert(result.header.hasExtendedTimestamp);
 }
@@ -488,7 +486,7 @@ unittest {
     auto h = ChunkMessageHeader(EXTENDED_TIMESTAMP_SENTINEL, 100, 9, 1, false);
     auto buf = Appender!(ubyte[])();
     writeMessageHeader(buf, 0, h);
-    auto result = readMessageHeader(buf[], 0);
+    const result = readMessageHeader(buf[], 0);
     assert(result.header.timestamp == EXTENDED_TIMESTAMP_SENTINEL);
     assert(result.header.hasExtendedTimestamp);
 }
@@ -498,7 +496,7 @@ unittest {
     auto h = ChunkMessageHeader(EXTENDED_TIMESTAMP_SENTINEL - 1, 100, 9, 1, false);
     auto buf = Appender!(ubyte[])();
     writeMessageHeader(buf, 0, h);
-    auto result = readMessageHeader(buf[], 0);
+    const result = readMessageHeader(buf[], 0);
     assert(result.header.timestamp == EXTENDED_TIMESTAMP_SENTINEL - 1);
     assert(!result.header.hasExtendedTimestamp);
 }

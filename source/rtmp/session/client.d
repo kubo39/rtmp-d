@@ -46,7 +46,7 @@ struct ClientSession {
 
     ubyte[] processBytes(const(ubyte)[] data) {
         if (state_ == State.handshaking) {
-            auto result = handshake_.processBytes(data);
+            const result = handshake_.processBytes(data);
             ubyte[] output;
             if (result.kind == HandshakeResult.Kind.sendData)
                 output = result.data.dup;
@@ -86,8 +86,12 @@ struct ClientSession {
         if (state_ != State.ready)
             throw new SessionException("not ready");
         auto payload = encodeCommand(CommandMessage(
-            commandName: "publish", transactionId: 0.0, commandObject: AmfValue.null_(), args: [AmfValue(name), AmfValue(type)]));
-        auto msg = RtmpMessage(typeId: cast(ubyte) MessageTypeId.commandAmf0, streamId: streamId, timestamp: 0, payload: payload);
+            commandName: "publish", transactionId: 0.0,
+            commandObject: AmfValue.null_(),
+            args: [AmfValue(name), AmfValue(type)]));
+        auto msg = RtmpMessage(
+            typeId: cast(ubyte) MessageTypeId.commandAmf0,
+            streamId: streamId, timestamp: 0, payload: payload);
         return writer_.writeMessage(STREAM_COMMAND_CSID, msg);
     }
 
@@ -95,18 +99,26 @@ struct ClientSession {
         if (state_ != State.ready)
             throw new SessionException("not ready");
         auto payload = encodeCommand(CommandMessage(
-            commandName: "play", transactionId: 0.0, commandObject: AmfValue.null_(), args: [AmfValue(name)]));
-        auto msg = RtmpMessage(typeId: cast(ubyte) MessageTypeId.commandAmf0, streamId: streamId, timestamp: 0, payload: payload);
+            commandName: "play", transactionId: 0.0,
+            commandObject: AmfValue.null_(),
+            args: [AmfValue(name)]));
+        auto msg = RtmpMessage(
+            typeId: cast(ubyte) MessageTypeId.commandAmf0,
+            streamId: streamId, timestamp: 0, payload: payload);
         return writer_.writeMessage(STREAM_COMMAND_CSID, msg);
     }
 
     ubyte[] sendAudio(uint streamId, uint timestamp, const(ubyte)[] payload) {
-        auto msg = RtmpMessage(typeId: cast(ubyte) MessageTypeId.audio, streamId: streamId, timestamp: timestamp, payload: payload.dup);
+        auto msg = RtmpMessage(
+            typeId: cast(ubyte) MessageTypeId.audio,
+            streamId: streamId, timestamp: timestamp, payload: payload.dup);
         return writer_.writeMessage(AUDIO_CSID, msg);
     }
 
     ubyte[] sendVideo(uint streamId, uint timestamp, const(ubyte)[] payload) {
-        auto msg = RtmpMessage(typeId: cast(ubyte) MessageTypeId.video, streamId: streamId, timestamp: timestamp, payload: payload.dup);
+        auto msg = RtmpMessage(
+            typeId: cast(ubyte) MessageTypeId.video,
+            streamId: streamId, timestamp: timestamp, payload: payload.dup);
         return writer_.writeMessage(VIDEO_CSID, msg);
     }
 
@@ -173,7 +185,9 @@ struct ClientSession {
     }
 
     private ubyte[] writeCommand(uint streamId, ubyte[] payload) {
-        auto msg = RtmpMessage(typeId: cast(ubyte) MessageTypeId.commandAmf0, streamId: streamId, timestamp: 0, payload: payload);
+        auto msg = RtmpMessage(
+            typeId: cast(ubyte) MessageTypeId.commandAmf0,
+            streamId: streamId, timestamp: 0, payload: payload);
         return writer_.writeMessage(COMMAND_CSID, msg);
     }
 

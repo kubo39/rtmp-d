@@ -19,3 +19,12 @@ jobs:
           compiler: ${{ matrix.dc }}
       - run: dub test
       - run: dub test rtmp-d:server
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dlang-community/setup-dlang@v2
+        with:
+          compiler: dmd-latest
+      - run: dub lint --dscanner-config=./.dscanner.ini
