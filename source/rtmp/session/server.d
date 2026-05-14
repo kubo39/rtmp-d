@@ -345,7 +345,7 @@ version(unittest)
     }
 }
 
-// Full flow: handshake → connect → createStream → publish
+@("Full flow: handshake → connect → createStream → publish")
 unittest {
     auto handler = new TestServerHandler();
     auto server = ServerSession(handler);
@@ -417,7 +417,7 @@ unittest {
     assert(statusCmd.commandName == "onStatus");
 }
 
-// Connect rejection
+@("Connect rejection")
 unittest {
     auto handler = new TestServerHandler();
     handler.rejectConnect = true;
@@ -446,7 +446,7 @@ unittest {
     assert(!server.isReady);
 }
 
-// Ping auto-response
+@("Ping auto-response")
 unittest {
     auto handler = new TestServerHandler();
     auto server = ServerSession(handler);
@@ -484,7 +484,7 @@ unittest {
     assert(pong.timestamp == 12_345);
 }
 
-// Audio/Video forwarding to handler
+@("Audio/Video forwarding to handler")
 unittest {
     auto handler = new TestServerHandler();
     auto server = ServerSession(handler);
@@ -531,7 +531,7 @@ unittest {
     assert(handler.receivedVideo[0] == videoData);
 }
 
-// Invalid state: command before connect
+@("Invalid state: command before connect")
 unittest {
     import std.exception : assertThrown;
     auto handler = new TestServerHandler();
@@ -552,7 +552,7 @@ unittest {
     assertThrown!SessionException(server.processBytes(csChunks));
 }
 
-// Play command handling
+@("Play command handling")
 unittest {
     auto handler = new TestServerHandler();
     auto server = ServerSession(handler);
@@ -606,7 +606,7 @@ unittest {
     assert(startCmd.commandName == "onStatus");
 }
 
-// DeleteStream
+@("DeleteStream")
 unittest {
     auto handler = new TestServerHandler();
     auto server = ServerSession(handler);
@@ -643,7 +643,7 @@ unittest {
     assert(handler.lastDeletedStream == 1);
 }
 
-// No handler (null): auto-accept everything
+@("No handler (null): auto-accept everything")
 unittest {
     auto server = ServerSession(null);
     auto clientHS = ClientHandshake.create();
@@ -670,7 +670,7 @@ unittest {
     assert(resultCmd.commandName == "_result");
 }
 
-// Integration: full ServerSession + ClientSession flow
+@("Integration: full ServerSession + ClientSession flow")
 unittest {
     import rtmp.session.client : ClientSession;
 

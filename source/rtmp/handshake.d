@@ -260,8 +260,8 @@ private string formatUbyte(ubyte v) {
     return [digits[v / 100], digits[(v / 10) % 10], digits[v % 10]];
 }
 
+@("Full client-server handshake")
 unittest {
-    // Full client-server handshake
     auto server = ServerHandshake.create();
     auto client = ClientHandshake.create();
 
@@ -288,8 +288,8 @@ unittest {
     assert(server.done);
 }
 
+@("Partial data: feed bytes one at a time to server")
 unittest {
-    // Partial data: feed bytes one at a time to server
     auto server = ServerHandshake.create();
 
     // Build C0+C1
@@ -313,6 +313,7 @@ unittest {
     assert(result.kind == HandshakeResult.Kind.sendData);
 }
 
+@("Server rejects wrong C0 version")
 unittest {
     import std.exception : assertThrown;
     auto server = ServerHandshake.create();
@@ -323,6 +324,7 @@ unittest {
     assertThrown!HandshakeException(server.processBytes(badC0C1));
 }
 
+@("Client rejects wrong S0 version")
 unittest {
     import std.exception : assertThrown;
     auto client = ClientHandshake.create();
@@ -335,6 +337,7 @@ unittest {
     assertThrown!HandshakeException(client.processBytes(badS0S1S2));
 }
 
+@("Server rejects C2 with wrong random echo")
 unittest {
     import std.exception : assertThrown;
     auto server = ServerHandshake.create();
@@ -354,6 +357,7 @@ unittest {
     assertThrown!HandshakeException(server.processBytes(badC2[]));
 }
 
+@("Client rejects S2 with wrong random echo")
 unittest {
     import std.exception : assertThrown;
     auto client = ClientHandshake.create();
@@ -371,8 +375,8 @@ unittest {
     assertThrown!HandshakeException(client.processBytes(s0s1s2));
 }
 
+@("Remaining bytes are preserved after handshake")
 unittest {
-    // Remaining bytes are preserved after handshake
     auto server = ServerHandshake.create();
     auto client = ClientHandshake.create();
 
@@ -387,8 +391,8 @@ unittest {
     assert(server.remainingBytes == [0xDE, 0xAD]);
 }
 
+@("Time source delegate is called")
 unittest {
-    // Time source delegate is called
     uint callCount = 0;
     auto server = ServerHandshake(() { callCount++; return uint(12_345); });
     auto client = ClientHandshake(() { return uint(67_890); });

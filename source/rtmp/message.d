@@ -393,7 +393,7 @@ RtmpMessage makeCommandRtmpMessage(
         streamId: streamId, timestamp: timestamp, payload: payload.dup);
 }
 
-// Protocol Control Messages round-trip
+@("SetChunkSize round-trip")
 unittest {
     const scs = decodeSetChunkSize(encodeSetChunkSize(4096));
     assert(scs.chunkSize == 4096);
@@ -403,21 +403,25 @@ unittest {
     assert(scs2.chunkSize == 0x7FFFFFFF);
 }
 
+@("Abort round-trip")
 unittest {
     const ab = decodeAbort(encodeAbort(42));
     assert(ab.chunkStreamId == 42);
 }
 
+@("Acknowledgement round-trip")
 unittest {
     const ack = decodeAcknowledgement(encodeAcknowledgement(123_456));
     assert(ack.sequenceNumber == 123_456);
 }
 
+@("WindowAckSize round-trip")
 unittest {
     const was = decodeWindowAckSize(encodeWindowAckSize(2_500_000));
     assert(was.size == 2_500_000);
 }
 
+@("SetPeerBandwidth round-trip")
 unittest {
     const spb = decodeSetPeerBandwidth(
         encodeSetPeerBandwidth(5_000_000, BandwidthLimitType.dynamic));
@@ -425,7 +429,7 @@ unittest {
     assert(spb.limitType == BandwidthLimitType.dynamic);
 }
 
-// User Control Events round-trip
+@("UserControl streamBegin round-trip")
 unittest {
     auto ev = UserControlEvent(UserControlEventType.streamBegin);
     ev.streamId = 1;
@@ -434,6 +438,7 @@ unittest {
     assert(decoded.streamId == 1);
 }
 
+@("UserControl setBufferLength round-trip")
 unittest {
     auto ev = UserControlEvent(UserControlEventType.setBufferLength);
     ev.streamId = 1;
@@ -444,6 +449,7 @@ unittest {
     assert(decoded.bufferLength == 3000);
 }
 
+@("UserControl pingRequest round-trip")
 unittest {
     auto ev = UserControlEvent(UserControlEventType.pingRequest);
     ev.timestamp = 12_345;
@@ -452,9 +458,8 @@ unittest {
     assert(decoded.timestamp == 12_345);
 }
 
-// Command Messages
+@("connect command round-trip")
 unittest {
-    // connect command round-trip
     auto cmdObj = AmfObject([
         AmfKeyValue("app", AmfValue("live")),
         AmfKeyValue("tcUrl", AmfValue("rtmp://localhost/live")),
@@ -475,8 +480,8 @@ unittest {
     assert((*("app" in conn.commandObject)) == AmfValue("live"));
 }
 
+@("createStream command round-trip")
 unittest {
-    // createStream round-trip
     auto cmd = CommandMessage("createStream", 2.0, AmfValue.null_(), []);
     auto decoded = decodeCommand(encodeCommand(cmd));
     assert(decoded.commandName == "createStream");
@@ -484,8 +489,8 @@ unittest {
     assert(cs.transactionId == 2.0);
 }
 
+@("publish command round-trip")
 unittest {
-    // publish command
     auto cmd = CommandMessage("publish", 3.0, AmfValue.null_(), [
         AmfValue("mystream"), AmfValue("live"),
     ]);
@@ -495,8 +500,8 @@ unittest {
     assert(pub.publishingType == PublishingType.live);
 }
 
+@("play command with all params")
 unittest {
-    // play command with all params
     auto cmd = CommandMessage("play", 4.0, AmfValue.null_(), [
         AmfValue("stream1"), AmfValue(0.0), AmfValue(-1.0), AmfValue(false),
     ]);
@@ -508,8 +513,8 @@ unittest {
     assert(play.reset == false);
 }
 
+@("deleteStream command round-trip")
 unittest {
-    // deleteStream
     auto cmd = CommandMessage("deleteStream", 5.0, AmfValue.null_(), [
         AmfValue(1.0),
     ]);
@@ -518,9 +523,8 @@ unittest {
     assert(del.streamId == 1.0);
 }
 
-// Response builders
+@("_result response builder")
 unittest {
-    // _result response
     auto props = AmfValue(AmfObject([
         AmfKeyValue("fmsVer", AmfValue("FMS/3,0,1,123")),
     ]));
@@ -534,8 +538,8 @@ unittest {
     assert(decoded.transactionId == 1.0);
 }
 
+@("onStatus response builder")
 unittest {
-    // onStatus
     auto status = makeStatusInfo("status", "NetStream.Publish.Start", "Publishing started");
     auto encoded = encodeOnStatus(status);
     auto decoded = decodeCommand(encoded);
@@ -547,7 +551,7 @@ unittest {
     assert((*("code" in obj)) == AmfValue("NetStream.Publish.Start"));
 }
 
-// Data Messages
+@("DataMessage round-trip")
 unittest {
     auto dm = DataMessage("@setDataFrame", [
         AmfValue("onMetaData"),
@@ -564,17 +568,19 @@ unittest {
     assert(decoded.values[0] == AmfValue("onMetaData"));
 }
 
-// Error cases
+@("decodeSetChunkSize throws on short payload")
 unittest {
     import std.exception : assertThrown;
     assertThrown!MessageException(decodeSetChunkSize([]));
 }
 
+@("decodeCommand throws on too few values")
 unittest {
     import std.exception : assertThrown;
     assertThrown!MessageException(decodeCommand(encode(AmfValue("only_one"))));
 }
 
+@("decodeUserControl throws on short payload")
 unittest {
     import std.exception : assertThrown;
     assertThrown!MessageException(decodeUserControl([0x00]));

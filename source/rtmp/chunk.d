@@ -423,7 +423,7 @@ private void write24(ref Appender!(ubyte[]) buf, uint value) {
     buf ~= cast(ubyte)(value & 0xFF);
 }
 
-// Basic header round-trip
+@("Basic header round-trip")
 unittest {
     void testBasicHeader(uint csid) {
         foreach (ubyte fmt; 0 .. 4) {
@@ -443,7 +443,7 @@ unittest {
     testBasicHeader(65_599); // 3-byte: maximum
 }
 
-// Message header fmt 0 round-trip
+@("Message header fmt 0 round-trip")
 unittest {
     auto h = ChunkMessageHeader(1000, 256, 9, 1, false);
     auto buf = Appender!(ubyte[])();
@@ -455,7 +455,7 @@ unittest {
     assert(result.header.messageStreamId == 1);
 }
 
-// Message header fmt 1 round-trip
+@("Message header fmt 1 round-trip")
 unittest {
     auto h = ChunkMessageHeader(500, 128, 8, 0, false);
     auto buf = Appender!(ubyte[])();
@@ -466,7 +466,7 @@ unittest {
     assert(result.header.messageTypeId == 8);
 }
 
-// Message header fmt 2 round-trip
+@("Message header fmt 2 round-trip")
 unittest {
     auto h = ChunkMessageHeader(100, 0, 0, 0, false);
     auto buf = Appender!(ubyte[])();
@@ -475,13 +475,13 @@ unittest {
     assert(result.header.timestamp == 100);
 }
 
-// Message header fmt 3 (empty)
+@("Message header fmt 3 (empty)")
 unittest {
     const result = readMessageHeader([], 3);
     assert(result.bytesConsumed == 0);
 }
 
-// Extended timestamp
+@("Extended timestamp")
 unittest {
     auto h = ChunkMessageHeader(0x1000000, 100, 9, 1, false);
     auto buf = Appender!(ubyte[])();
@@ -491,7 +491,7 @@ unittest {
     assert(result.header.hasExtendedTimestamp);
 }
 
-// Extended timestamp boundary: exactly 0xFFFFFF
+@("Extended timestamp boundary: exactly 0xFFFFFF")
 unittest {
     auto h = ChunkMessageHeader(EXTENDED_TIMESTAMP_SENTINEL, 100, 9, 1, false);
     auto buf = Appender!(ubyte[])();
@@ -501,7 +501,7 @@ unittest {
     assert(result.header.hasExtendedTimestamp);
 }
 
-// Extended timestamp boundary: 0xFFFFFE (no extended)
+@("Extended timestamp boundary: 0xFFFFFE (no extended)")
 unittest {
     auto h = ChunkMessageHeader(EXTENDED_TIMESTAMP_SENTINEL - 1, 100, 9, 1, false);
     auto buf = Appender!(ubyte[])();
@@ -511,7 +511,7 @@ unittest {
     assert(!result.header.hasExtendedTimestamp);
 }
 
-// Writer + Reader round-trip: small message (fits in one chunk)
+@("Writer + Reader round-trip: small message (fits in one chunk)")
 unittest {
     auto writer = ChunkWriter();
     auto reader = ChunkReader();
@@ -529,7 +529,7 @@ unittest {
     assert(messages[0].payload == payload);
 }
 
-// Writer + Reader: message requiring fragmentation
+@("Writer + Reader: message requiring fragmentation")
 unittest {
     auto writer = ChunkWriter();
     auto reader = ChunkReader();
@@ -546,7 +546,7 @@ unittest {
     assert(messages[0].payload == payload);
 }
 
-// Writer + Reader: exact chunk boundary
+@("Writer + Reader: exact chunk boundary")
 unittest {
     auto writer = ChunkWriter();
     auto reader = ChunkReader();
@@ -561,7 +561,7 @@ unittest {
     assert(messages[0].payload == payload);
 }
 
-// Chunk size change
+@("Chunk size change")
 unittest {
     auto writer = ChunkWriter();
     auto reader = ChunkReader();
@@ -578,7 +578,7 @@ unittest {
     assert(messages[0].payload == payload);
 }
 
-// Multiple messages on same chunk stream (fmt selection)
+@("Multiple messages on same chunk stream (fmt selection)")
 unittest {
     auto writer = ChunkWriter();
     auto reader = ChunkReader();
@@ -599,7 +599,7 @@ unittest {
     assert(messages[1].timestamp == 200);
 }
 
-// Multiple chunk stream IDs interleaved
+@("Multiple chunk stream IDs interleaved")
 unittest {
     auto writer = ChunkWriter();
     auto reader = ChunkReader();
@@ -618,7 +618,7 @@ unittest {
     assert(messages[1].payload == [0xBB]);
 }
 
-// Empty payload message
+@("Empty payload message")
 unittest {
     auto writer = ChunkWriter();
     auto reader = ChunkReader();
@@ -630,7 +630,7 @@ unittest {
     assert(messages[0].payload.length == 0);
 }
 
-// Partial data feeding
+@("Partial data feeding")
 unittest {
     auto writer = ChunkWriter();
     auto reader = ChunkReader();
@@ -649,7 +649,7 @@ unittest {
     assert(messages[0].payload == payload);
 }
 
-// Extended timestamp in writer/reader round-trip
+@("Extended timestamp in writer/reader round-trip")
 unittest {
     auto writer = ChunkWriter();
     auto reader = ChunkReader();
@@ -662,7 +662,7 @@ unittest {
     assert(messages[0].timestamp == 0x1000000);
 }
 
-// Large message with extended timestamp + fragmentation
+@("Large message with extended timestamp + fragmentation")
 unittest {
     auto writer = ChunkWriter();
     auto reader = ChunkReader();
@@ -678,7 +678,7 @@ unittest {
     assert(messages[0].payload == payload);
 }
 
-// Backward timestamp forces fmt 0 (§5.3.1.2.1)
+@("Backward timestamp forces fmt 0 (§5.3.1.2.1)")
 unittest {
     auto writer = ChunkWriter();
     auto reader = ChunkReader();
@@ -696,7 +696,7 @@ unittest {
     assert(messages[1].timestamp == 500);
 }
 
-// ChunkReader.discardStream removes partial state (§5.4.2)
+@("ChunkReader.discardStream removes partial state (§5.4.2)")
 unittest {
     auto reader = ChunkReader();
 

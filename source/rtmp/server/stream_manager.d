@@ -131,7 +131,7 @@ version(unittest)
     }
 }
 
-// Publish creates a new stream
+@("Publish creates a new stream")
 unittest {
     auto mgr = new StreamManager();
     auto pub = new MockSubscriber();
@@ -142,7 +142,7 @@ unittest {
     assert(stream.hasPublisher());
 }
 
-// Duplicate publish rejected
+@("Duplicate publish rejected")
 unittest {
     auto mgr = new StreamManager();
     auto pub1 = new MockSubscriber();
@@ -151,7 +151,7 @@ unittest {
     assert(!mgr.publish("live/test", pub2));
 }
 
-// Subscribe to non-existent stream creates it
+@("Subscribe to non-existent stream creates it")
 unittest {
     auto mgr = new StreamManager();
     auto sub = new MockSubscriber();
@@ -163,7 +163,7 @@ unittest {
     assert(stream.subscriberCount() == 1);
 }
 
-// Publish after subscribe joins existing stream
+@("Publish after subscribe joins existing stream")
 unittest {
     auto mgr = new StreamManager();
     auto sub = new MockSubscriber();
@@ -175,7 +175,7 @@ unittest {
     assert(stream.subscriberCount() == 1);
 }
 
-// Distribute forwards to all subscribers
+@("Distribute forwards to all subscribers")
 unittest {
     auto mgr = new StreamManager();
     auto pub = new MockSubscriber();
@@ -198,7 +198,7 @@ unittest {
     assert(pub.received.length == 0);
 }
 
-// Distribute with no subscribers is a no-op
+@("Distribute with no subscribers is a no-op")
 unittest {
     auto mgr = new StreamManager();
     auto pub = new MockSubscriber();
@@ -208,7 +208,7 @@ unittest {
     // No crash, no data sent
 }
 
-// Unpublish notifies subscribers with StreamEOF
+@("Unpublish notifies subscribers with StreamEOF")
 unittest {
     auto mgr = new StreamManager();
     auto pub = new MockSubscriber();
@@ -226,7 +226,7 @@ unittest {
     assert(!stream.hasPublisher());
 }
 
-// Unpublish with no subscribers removes stream
+@("Unpublish with no subscribers removes stream")
 unittest {
     auto mgr = new StreamManager();
     auto pub = new MockSubscriber();
@@ -236,7 +236,7 @@ unittest {
     assert(mgr.getStream("live/test") is null);
 }
 
-// Unsubscribe removes subscriber
+@("Unsubscribe removes subscriber")
 unittest {
     auto mgr = new StreamManager();
     auto pub = new MockSubscriber();
@@ -251,7 +251,7 @@ unittest {
     assert(stream.subscriberCount() == 1);
 }
 
-// Unsubscribe last subscriber + no publisher removes stream
+@("Unsubscribe last subscriber + no publisher removes stream")
 unittest {
     auto mgr = new StreamManager();
     auto sub = new MockSubscriber();
@@ -260,7 +260,7 @@ unittest {
     assert(mgr.streamCount() == 0);
 }
 
-// Multiple streams are independent
+@("Multiple streams are independent")
 unittest {
     auto mgr = new StreamManager();
     auto pub1 = new MockSubscriber();

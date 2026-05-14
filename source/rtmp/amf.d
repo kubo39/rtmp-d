@@ -415,8 +415,8 @@ private string formatUint(size_t v) {
     return cast(string) result;
 }
 
+@("Number round-trip")
 unittest {
-    // Number round-trip
     auto numVal = AmfValue(42.5);
     auto encoded = encode(numVal);
     const decoded = decode(encoded);
@@ -424,16 +424,16 @@ unittest {
     assert(decoded.bytesConsumed == encoded.length);
 }
 
+@("Boolean round-trip")
 unittest {
-    // Boolean round-trip
     auto trueVal = AmfValue(true);
     auto falseVal = AmfValue(false);
     assert(decode(encode(trueVal)).value == trueVal);
     assert(decode(encode(falseVal)).value == falseVal);
 }
 
+@("String round-trip")
 unittest {
-    // String round-trip
     auto strVal = AmfValue("hello");
     assert(decode(encode(strVal)).value == strVal);
 
@@ -442,16 +442,16 @@ unittest {
     assert(decode(encode(emptyStr)).value == emptyStr);
 }
 
+@("Null and Undefined")
 unittest {
-    // Null and Undefined
     auto nullVal = AmfValue.null_();
     auto undefVal = AmfValue.undefined();
     assert(decode(encode(nullVal)).value.kind == AmfValue.Kind.null_);
     assert(decode(encode(undefVal)).value.kind == AmfValue.Kind.undefined);
 }
 
+@("Object round-trip")
 unittest {
-    // Object round-trip
     auto obj = AmfObject([
         AmfKeyValue("app", AmfValue("live")),
         AmfKeyValue("flashVer", AmfValue("FMLE/3.0")),
@@ -462,8 +462,8 @@ unittest {
     assert(decoded.value == objVal);
 }
 
+@("Nested object")
 unittest {
-    // Nested object
     auto inner = AmfObject([
         AmfKeyValue("width", AmfValue(1920.0)),
         AmfKeyValue("height", AmfValue(1080.0)),
@@ -476,8 +476,8 @@ unittest {
     assert(decode(encode(val)).value == val);
 }
 
+@("ECMA Array round-trip")
 unittest {
-    // ECMA Array round-trip
     auto obj = AmfObject([
         AmfKeyValue("duration", AmfValue(0.0)),
         AmfKeyValue("width", AmfValue(1280.0)),
@@ -488,8 +488,8 @@ unittest {
     assert(decoded.value.object == obj);
 }
 
+@("Strict Array round-trip")
 unittest {
-    // Strict Array round-trip
     auto arr = AmfValue([
         AmfValue(1.0),
         AmfValue("two"),
@@ -498,8 +498,8 @@ unittest {
     assert(decode(encode(arr)).value == arr);
 }
 
+@("Long String round-trip")
 unittest {
-    // Long String round-trip
     char[] longChars;
     longChars.length = 70_000;
     longChars[] = 'x';
@@ -509,8 +509,8 @@ unittest {
     assert(decoded.value.str == longStr.str);
 }
 
+@("Multiple values (connect command pattern)")
 unittest {
-    // Multiple values (connect command pattern)
     auto cmd = AmfValue("connect");
     auto txId = AmfValue(1.0);
     auto cmdObj = AmfValue(AmfObject([
@@ -528,23 +528,26 @@ unittest {
     assert(decoded[2] == cmdObj);
 }
 
+@("decode throws on empty data")
 unittest {
     import std.exception : assertThrown;
     assertThrown!AmfDecodeException(decode([]));
 }
 
+@("decode throws on truncated number")
 unittest {
     import std.exception : assertThrown;
     assertThrown!AmfDecodeException(decode([0x00, 0x01, 0x02]));
 }
 
+@("decode throws on unknown type marker")
 unittest {
     import std.exception : assertThrown;
     assertThrown!AmfDecodeException(decode([0xff]));
 }
 
+@("AmfObject.put and lookup")
 unittest {
-    // AmfObject.put and lookup
     auto obj = AmfObject();
     obj.put("key1", AmfValue(1.0));
     obj.put("key2", AmfValue("val"));
@@ -559,8 +562,8 @@ unittest {
     assert((*("key1" in obj)) == AmfValue(2.0));
 }
 
+@("Number: special values")
 unittest {
-    // Number: special values
     auto posZero = AmfValue(0.0);
     assert(decode(encode(posZero)).value == posZero);
 

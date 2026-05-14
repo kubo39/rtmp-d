@@ -208,7 +208,7 @@ struct ClientSession {
     }
 }
 
-// Client handshake
+@("Client handshake")
 unittest {
     auto client = ClientSession.create();
     auto c0c1 = client.startHandshake();
@@ -216,7 +216,7 @@ unittest {
     assert(c0c1[0] == RTMP_VERSION);
 }
 
-// Client state validation
+@("Client state validation")
 unittest {
     auto client = ClientSession.create();
 
