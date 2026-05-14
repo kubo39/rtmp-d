@@ -1,3 +1,13 @@
+/**
+ * RTMP handshake (client and server).
+ *
+ * Implements the simple RTMP 1.0 handshake (§5.2) with the three-packet
+ * exchange: C0/C1, S0/S1/S2, C2.
+ *
+ * License:   $(HTTP boost.org/LICENSE_1_0.txt, Boost Software License 1.0)
+ * Authors:   Hiroki Noda
+ * See_Also:  $(LINK2 https://veovera.github.io/enhanced-rtmp/docs/legacy/rtmp-v1-0-spec.pdf, RTMP 1.0 Specification)
+ */
 module rtmp.handshake;
 
 import std.bitmanip : bigEndianToNative, nativeToBigEndian;

@@ -1,3 +1,13 @@
+/**
+ * AMF0 encoding and decoding.
+ *
+ * Implements Action Message Format 0, the serialization format used by RTMP
+ * for command arguments, metadata, and other structured data.
+ *
+ * License:   $(HTTP boost.org/LICENSE_1_0.txt, Boost Software License 1.0)
+ * Authors:   Hiroki Noda
+ * See_Also:  $(LINK2 https://rtmp.veriskope.com/pdf/amf0-file-format-specification.pdf, AMF0 Specification)
+ */
 module rtmp.amf;
 
 import std.bitmanip : bigEndianToNative, nativeToBigEndian;

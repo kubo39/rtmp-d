@@ -1,3 +1,13 @@
+/**
+ * Server-side session callbacks.
+ *
+ * Defines the ServerHandler interface that applications implement to react
+ * to incoming RTMP commands (connect, publish, play, ...) and media data.
+ *
+ * License:   $(HTTP boost.org/LICENSE_1_0.txt, Boost Software License 1.0)
+ * Authors:   Hiroki Noda
+ * See_Also:  rtmp.session.server
+ */
 module rtmp.session.handler;
 
 import rtmp.message;

@@ -1,3 +1,13 @@
+/**
+ * vibe-core based RTMP server.
+ *
+ * Listens for TCP connections on a configured port and spawns a fiber
+ * per connection. Glue code between the protocol library and vibe-core.
+ *
+ * License:   $(HTTP boost.org/LICENSE_1_0.txt, Boost Software License 1.0)
+ * Authors:   Hiroki Noda
+ * See_Also:  rtmp.server.connection, rtmp.server.stream_manager
+ */
 module rtmp.server.server;
 
 import vibe.core.net : listenTCP, TCPConnection;

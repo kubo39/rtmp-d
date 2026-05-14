@@ -1,3 +1,14 @@
+/**
+ * Per-connection handler for the vibe-core server.
+ *
+ * Implements ServerHandler to route incoming publisher data into a
+ * StreamManager, and Subscriber to receive distributed media from a
+ * publisher's stream.
+ *
+ * License:   $(HTTP boost.org/LICENSE_1_0.txt, Boost Software License 1.0)
+ * Authors:   Hiroki Noda
+ * See_Also:  rtmp.server.server, rtmp.server.stream_manager
+ */
 module rtmp.server.connection;
 
 import rtmp.chunk : ChunkWriter, RtmpMessage, PROTOCOL_CHUNK_STREAM_ID;

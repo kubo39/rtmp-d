@@ -1,3 +1,14 @@
+/**
+ * RTMP client session.
+ *
+ * Drives the client-side state machine: handshake, connect, createStream,
+ * publish, and play. Transport-agnostic — caller feeds raw bytes in and
+ * sends the returned bytes out.
+ *
+ * License:   $(HTTP boost.org/LICENSE_1_0.txt, Boost Software License 1.0)
+ * Authors:   Hiroki Noda
+ * See_Also:  rtmp.session.server
+ */
 module rtmp.session.client;
 
 import std.array : Appender;

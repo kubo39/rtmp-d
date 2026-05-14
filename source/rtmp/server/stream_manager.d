@@ -1,3 +1,14 @@
+/**
+ * Stream routing between publishers and subscribers.
+ *
+ * Maps stream names to a single publisher and N subscribers. Media
+ * messages from the publisher are distributed to all subscribers via the
+ * Subscriber interface.
+ *
+ * License:   $(HTTP boost.org/LICENSE_1_0.txt, Boost Software License 1.0)
+ * Authors:   Hiroki Noda
+ * See_Also:  rtmp.server.server, rtmp.server.connection
+ */
 module rtmp.server.stream_manager;
 
 import rtmp.chunk : ChunkWriter, RtmpMessage, PROTOCOL_CHUNK_STREAM_ID;

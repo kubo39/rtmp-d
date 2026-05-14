@@ -1,3 +1,13 @@
+/**
+ * RTMP message types: protocol control, user control, command, data.
+ *
+ * Encoders and decoders for the message payloads that sit on top of the
+ * chunk stream. Command messages are AMF0-encoded.
+ *
+ * License:   $(HTTP boost.org/LICENSE_1_0.txt, Boost Software License 1.0)
+ * Authors:   Hiroki Noda
+ * See_Also:  rtmp.amf, rtmp.chunk
+ */
 module rtmp.message;
 
 import std.bitmanip : bigEndianToNative, nativeToBigEndian;
