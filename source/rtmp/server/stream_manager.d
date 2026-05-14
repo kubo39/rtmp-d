@@ -19,11 +19,11 @@ interface Subscriber {
 }
 
 class Stream {
-    private Subscriber publisher_;
+    private bool hasPublisher_;
     private Subscriber[] subscribers_;
 
     bool hasPublisher() const {
-        return publisher_ !is null;
+        return hasPublisher_;
     }
 
     size_t subscriberCount() const {
@@ -31,7 +31,7 @@ class Stream {
     }
 
     bool empty() const {
-        return publisher_ is null && subscribers_.length == 0;
+        return !hasPublisher_ && subscribers_.length == 0;
     }
 
     void distribute(ubyte typeId, uint timestamp, const(ubyte)[] payload) {
@@ -59,16 +59,16 @@ class Stream {
 class StreamManager {
     private Stream[string] streams_;
 
-    bool publish(string name, Subscriber publisher) {
+    bool publish(string name) {
         if (name in streams_) {
             auto stream = streams_[name];
             if (stream.hasPublisher())
                 return false;
-            stream.publisher_ = publisher;
+            stream.hasPublisher_ = true;
             return true;
         }
         auto stream = new Stream();
-        stream.publisher_ = publisher;
+        stream.hasPublisher_ = true;
         streams_[name] = stream;
         return true;
     }
@@ -84,7 +84,7 @@ class StreamManager {
         if (name !in streams_)
             return;
         auto stream = streams_[name];
-        stream.publisher_ = null;
+        stream.hasPublisher_ = false;
         // Notify subscribers with StreamEOF
         if (stream.subscribers_.length > 0) {
             auto eof = UserControlEvent(eventType: UserControlEventType.streamEOF, streamId: 1);
@@ -134,8 +134,7 @@ version(unittest)
 @("Publish creates a new stream")
 unittest {
     auto mgr = new StreamManager();
-    auto pub = new MockSubscriber();
-    assert(mgr.publish("live/test", pub));
+    assert(mgr.publish("live/test"));
     assert(mgr.streamCount() == 1);
     auto stream = mgr.getStream("live/test");
     assert(stream !is null);
@@ -145,10 +144,8 @@ unittest {
 @("Duplicate publish rejected")
 unittest {
     auto mgr = new StreamManager();
-    auto pub1 = new MockSubscriber();
-    auto pub2 = new MockSubscriber();
-    assert(mgr.publish("live/test", pub1));
-    assert(!mgr.publish("live/test", pub2));
+    assert(mgr.publish("live/test"));
+    assert(!mgr.publish("live/test"));
 }
 
 @("Subscribe to non-existent stream creates it")
@@ -167,9 +164,8 @@ unittest {
 unittest {
     auto mgr = new StreamManager();
     auto sub = new MockSubscriber();
-    auto pub = new MockSubscriber();
     mgr.subscribe("live/test", sub);
-    assert(mgr.publish("live/test", pub));
+    assert(mgr.publish("live/test"));
     auto stream = mgr.getStream("live/test");
     assert(stream.hasPublisher());
     assert(stream.subscriberCount() == 1);
@@ -178,10 +174,9 @@ unittest {
 @("Distribute forwards to all subscribers")
 unittest {
     auto mgr = new StreamManager();
-    auto pub = new MockSubscriber();
     auto sub1 = new MockSubscriber();
     auto sub2 = new MockSubscriber();
-    mgr.publish("live/test", pub);
+    mgr.publish("live/test");
     mgr.subscribe("live/test", sub1);
     mgr.subscribe("live/test", sub2);
 
@@ -194,15 +189,12 @@ unittest {
     // Both get the same chunk-encoded bytes
     assert(sub1.received[0] == sub2.received[0]);
     assert(sub1.received[0].length > 0);
-    // Publisher does not receive
-    assert(pub.received.length == 0);
 }
 
 @("Distribute with no subscribers is a no-op")
 unittest {
     auto mgr = new StreamManager();
-    auto pub = new MockSubscriber();
-    mgr.publish("live/test", pub);
+    mgr.publish("live/test");
     auto stream = mgr.getStream("live/test");
     stream.distribute(MessageTypeId.video, 0, [0x17, 0x00]);
     // No crash, no data sent
@@ -211,9 +203,8 @@ unittest {
 @("Unpublish notifies subscribers with StreamEOF")
 unittest {
     auto mgr = new StreamManager();
-    auto pub = new MockSubscriber();
     auto sub = new MockSubscriber();
-    mgr.publish("live/test", pub);
+    mgr.publish("live/test");
     mgr.subscribe("live/test", sub);
 
     mgr.unpublish("live/test");
@@ -229,8 +220,7 @@ unittest {
 @("Unpublish with no subscribers removes stream")
 unittest {
     auto mgr = new StreamManager();
-    auto pub = new MockSubscriber();
-    mgr.publish("live/test", pub);
+    mgr.publish("live/test");
     mgr.unpublish("live/test");
     assert(mgr.streamCount() == 0);
     assert(mgr.getStream("live/test") is null);
@@ -239,10 +229,9 @@ unittest {
 @("Unsubscribe removes subscriber")
 unittest {
     auto mgr = new StreamManager();
-    auto pub = new MockSubscriber();
     auto sub1 = new MockSubscriber();
     auto sub2 = new MockSubscriber();
-    mgr.publish("live/test", pub);
+    mgr.publish("live/test");
     mgr.subscribe("live/test", sub1);
     mgr.subscribe("live/test", sub2);
 
@@ -263,13 +252,11 @@ unittest {
 @("Multiple streams are independent")
 unittest {
     auto mgr = new StreamManager();
-    auto pub1 = new MockSubscriber();
-    auto pub2 = new MockSubscriber();
     auto sub1 = new MockSubscriber();
     auto sub2 = new MockSubscriber();
 
-    mgr.publish("stream_a", pub1);
-    mgr.publish("stream_b", pub2);
+    mgr.publish("stream_a");
+    mgr.publish("stream_b");
     mgr.subscribe("stream_a", sub1);
     mgr.subscribe("stream_b", sub2);
 

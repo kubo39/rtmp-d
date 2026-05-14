@@ -37,7 +37,7 @@ class ConnectionHandler : ServerHandler, Subscriber {
 
     void onPublish(uint streamId, PublishCommand cmd) {
         if (cmd.publishingName.length > 0) {
-            if (streamManager_.publish(cmd.publishingName, this))
+            if (streamManager_.publish(cmd.publishingName))
                 publishingStream_ = cmd.publishingName;
         }
     }
