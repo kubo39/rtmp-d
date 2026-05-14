@@ -8,6 +8,7 @@ dub.selections.json
 
 # dub generated test/build binaries
 *-test-library
+*-test-unittest
 rtmp-server
 
 # generated documents
