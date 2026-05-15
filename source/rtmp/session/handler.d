@@ -18,11 +18,25 @@ class SessionException : Exception {
     }
 }
 
+struct Reply {
+    bool accepted;
+    string code;
+    string description;
+
+    static Reply accept() {
+        return Reply(true, "", "");
+    }
+
+    static Reply reject(string code, string description) {
+        return Reply(false, code, description);
+    }
+}
+
 interface ServerHandler {
-    bool onConnect(ConnectCommand cmd);
+    Reply onConnect(ConnectCommand cmd);
     void onCreateStream(uint streamId);
-    void onPublish(uint streamId, PublishCommand cmd);
-    void onPlay(uint streamId, PlayCommand cmd);
+    Reply onPublish(uint streamId, PublishCommand cmd);
+    Reply onPlay(uint streamId, PlayCommand cmd);
     void onDeleteStream(uint streamId);
     void onAudio(uint streamId, uint timestamp, const(ubyte)[] payload);
     void onVideo(uint streamId, uint timestamp, const(ubyte)[] payload);

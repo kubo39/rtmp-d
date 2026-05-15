@@ -161,13 +161,17 @@ struct ServerSession {
         auto output = Appender!(ubyte[])();
         auto connectCmd = decodeConnect(cmd);
 
-        const accepted = handler_ is null || handler_.onConnect(connectCmd);
+        const result = handler_ is null
+            ? Reply.accept()
+            : handler_.onConnect(connectCmd);
 
-        if (!accepted) {
+        if (!result.accepted) {
             auto info = AmfValue(AmfObject([
                 AmfKeyValue("level", AmfValue("error")),
-                AmfKeyValue("code", AmfValue("NetConnection.Connect.Rejected")),
-                AmfKeyValue("description", AmfValue("Connection rejected.")),
+                AmfKeyValue("code", AmfValue(
+                    result.code.length > 0 ? result.code : "NetConnection.Connect.Rejected")),
+                AmfKeyValue("description", AmfValue(
+                    result.description.length > 0 ? result.description : "Connection rejected.")),
             ]));
             output ~= writeCommand(0,
                 encodeErrorResponse(cmd.transactionId, AmfValue.null_(), info));
@@ -220,8 +224,17 @@ struct ServerSession {
     private ubyte[] handlePublish(CommandMessage cmd, uint msgStreamId) {
         auto pub = decodePublish(cmd);
 
-        if (handler_ !is null)
-            handler_.onPublish(msgStreamId, pub);
+        const result = handler_ is null
+            ? Reply.accept()
+            : handler_.onPublish(msgStreamId, pub);
+
+        if (!result.accepted) {
+            return writeCommand(msgStreamId,
+                encodeOnStatus(makeStatusInfo(
+                    "error",
+                    result.code.length > 0 ? result.code : "NetStream.Publish.BadName",
+                    result.description.length > 0 ? result.description : "Publish rejected.")));
+        }
 
         return writeCommand(msgStreamId,
             encodeOnStatus(makeStatusInfo(
@@ -232,8 +245,17 @@ struct ServerSession {
         auto output = Appender!(ubyte[])();
         auto play = decodePlay(cmd);
 
-        if (handler_ !is null)
-            handler_.onPlay(msgStreamId, play);
+        const result = handler_ is null
+            ? Reply.accept()
+            : handler_.onPlay(msgStreamId, play);
+
+        if (!result.accepted) {
+            return writeCommand(msgStreamId,
+                encodeOnStatus(makeStatusInfo(
+                    "error",
+                    result.code.length > 0 ? result.code : "NetStream.Play.StreamNotFound",
+                    result.description.length > 0 ? result.description : "Play rejected.")));
+        }
 
         // §7.2.2.1: StreamIsRecorded
         auto streamIsRecorded = UserControlEvent(
@@ -293,6 +315,10 @@ version(unittest)
     private class TestServerHandler : ServerHandler {
         bool connectCalled;
         bool rejectConnect;
+        string rejectConnectCode;
+        string rejectConnectDescription;
+        bool rejectPublish;
+        bool rejectPlay;
         uint lastCreatedStream;
         string lastPublishName;
         string lastPlayName;
@@ -300,21 +326,29 @@ version(unittest)
         ubyte[][] receivedAudio;
         ubyte[][] receivedVideo;
 
-        bool onConnect(ConnectCommand cmd) {
+        Reply onConnect(ConnectCommand cmd) {
             connectCalled = true;
-            return !rejectConnect;
+            if (rejectConnect)
+                return Reply.reject(rejectConnectCode, rejectConnectDescription);
+            return Reply.accept();
         }
 
         void onCreateStream(uint streamId) {
             lastCreatedStream = streamId;
         }
 
-        void onPublish(uint streamId, PublishCommand cmd) {
+        Reply onPublish(uint streamId, PublishCommand cmd) {
             lastPublishName = cmd.publishingName;
+            return rejectPublish
+                ? Reply.reject("NetStream.Publish.Denied", "Publish denied.")
+                : Reply.accept();
         }
 
-        void onPlay(uint streamId, PlayCommand cmd) {
+        Reply onPlay(uint streamId, PlayCommand cmd) {
             lastPlayName = cmd.streamName;
+            return rejectPlay
+                ? Reply.reject("NetStream.Play.StreamNotFound", "Stream not found.")
+                : Reply.accept();
         }
 
         void onDeleteStream(uint streamId) {
@@ -444,6 +478,126 @@ unittest {
     const cmd = decodeCommand(messages[0].payload);
     assert(cmd.commandName == "_error");
     assert(!server.isReady);
+}
+
+@("Connect rejection with custom code and description")
+unittest {
+    auto handler = new TestServerHandler();
+    handler.rejectConnect = true;
+    handler.rejectConnectCode = "NetConnection.Connect.InvalidApp";
+    handler.rejectConnectDescription = "Unknown app: live";
+    auto server = ServerSession(handler);
+    auto clientHS = ClientHandshake.create();
+    auto clientWriter = ChunkWriter();
+    auto clientReader = ChunkReader();
+
+    auto c0c1 = clientHS.generateC0C1();
+    auto s0s1s2 = server.processBytes(c0c1);
+    auto hsResult = clientHS.processBytes(s0s1s2);
+    server.processBytes(hsResult.data);
+
+    auto connectPayload = encodeCommand(CommandMessage(
+        "connect", 1.0, AmfValue(AmfObject([
+            AmfKeyValue("app", AmfValue("live")),
+        ])), null));
+    auto connectChunks = clientWriter.writeMessage(3,
+        RtmpMessage(cast(ubyte) MessageTypeId.commandAmf0, 0, 0, connectPayload));
+
+    auto response = server.processBytes(connectChunks);
+    auto messages = parseResponse(clientReader, response);
+    auto cmd = decodeCommand(messages[0].payload);
+    assert(cmd.commandName == "_error");
+    auto info = cmd.args[0].object;
+    assert((*("code" in info)) == AmfValue("NetConnection.Connect.InvalidApp"));
+    assert((*("description" in info)) == AmfValue("Unknown app: live"));
+}
+
+@("Publish rejection")
+unittest {
+    auto handler = new TestServerHandler();
+    handler.rejectPublish = true;
+    auto server = ServerSession(handler);
+    auto clientHS = ClientHandshake.create();
+    auto clientWriter = ChunkWriter();
+    auto clientReader = ChunkReader();
+
+    // Handshake + connect + createStream
+    auto c0c1 = clientHS.generateC0C1();
+    auto s0s1s2 = server.processBytes(c0c1);
+    auto hsResult = clientHS.processBytes(s0s1s2);
+    server.processBytes(hsResult.data);
+
+    auto connectPayload = encodeCommand(CommandMessage(
+        "connect", 1.0, AmfValue(AmfObject([
+            AmfKeyValue("app", AmfValue("live")),
+        ])), null));
+    auto connectResponse = server.processBytes(clientWriter.writeMessage(3,
+        RtmpMessage(cast(ubyte) MessageTypeId.commandAmf0, 0, 0, connectPayload)));
+    parseResponse(clientReader, connectResponse);
+
+    auto csPayload = encodeCommand(CommandMessage(
+        "createStream", 2.0, AmfValue.null_(), null));
+    auto csResponse = server.processBytes(clientWriter.writeMessage(3,
+        RtmpMessage(cast(ubyte) MessageTypeId.commandAmf0, 0, 0, csPayload)));
+    parseResponse(clientReader, csResponse);
+
+    // Publish (rejected)
+    auto pubPayload = encodeCommand(CommandMessage(
+        "publish", 3.0, AmfValue.null_(), [AmfValue("mystream"), AmfValue("live")]));
+    auto pubResponse = server.processBytes(clientWriter.writeMessage(8,
+        RtmpMessage(cast(ubyte) MessageTypeId.commandAmf0, 1, 0, pubPayload)));
+
+    auto pubMessages = parseResponse(clientReader, pubResponse);
+    assert(pubMessages.length == 1);
+    auto statusCmd = decodeCommand(pubMessages[0].payload);
+    assert(statusCmd.commandName == "onStatus");
+    auto info = statusCmd.args[0].object;
+    assert((*("level" in info)) == AmfValue("error"));
+    assert((*("code" in info)) == AmfValue("NetStream.Publish.Denied"));
+}
+
+@("Play rejection")
+unittest {
+    auto handler = new TestServerHandler();
+    handler.rejectPlay = true;
+    auto server = ServerSession(handler);
+    auto clientHS = ClientHandshake.create();
+    auto clientWriter = ChunkWriter();
+    auto clientReader = ChunkReader();
+
+    // Handshake + connect + createStream
+    auto c0c1 = clientHS.generateC0C1();
+    auto s0s1s2 = server.processBytes(c0c1);
+    auto hsResult = clientHS.processBytes(s0s1s2);
+    server.processBytes(hsResult.data);
+
+    auto connectPayload = encodeCommand(CommandMessage(
+        "connect", 1.0, AmfValue(AmfObject([
+            AmfKeyValue("app", AmfValue("live")),
+        ])), null));
+    auto connectResponse = server.processBytes(clientWriter.writeMessage(3,
+        RtmpMessage(cast(ubyte) MessageTypeId.commandAmf0, 0, 0, connectPayload)));
+    parseResponse(clientReader, connectResponse);
+
+    auto csPayload = encodeCommand(CommandMessage(
+        "createStream", 2.0, AmfValue.null_(), null));
+    auto csResponse = server.processBytes(clientWriter.writeMessage(3,
+        RtmpMessage(cast(ubyte) MessageTypeId.commandAmf0, 0, 0, csPayload)));
+    parseResponse(clientReader, csResponse);
+
+    // Play (rejected)
+    auto playPayload = encodeCommand(CommandMessage(
+        "play", 4.0, AmfValue.null_(), [AmfValue("stream1")]));
+    auto playResponse = server.processBytes(clientWriter.writeMessage(8,
+        RtmpMessage(cast(ubyte) MessageTypeId.commandAmf0, 1, 0, playPayload)));
+
+    auto playMessages = parseResponse(clientReader, playResponse);
+    assert(playMessages.length == 1);
+    auto statusCmd = decodeCommand(playMessages[0].payload);
+    assert(statusCmd.commandName == "onStatus");
+    auto info = statusCmd.args[0].object;
+    assert((*("level" in info)) == AmfValue("error"));
+    assert((*("code" in info)) == AmfValue("NetStream.Play.StreamNotFound"));
 }
 
 @("Ping auto-response")
