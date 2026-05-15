@@ -10,8 +10,9 @@
  */
 module rtmp.amf;
 
-import std.bitmanip : bigEndianToNative, nativeToBigEndian;
 import std.array : Appender;
+import std.bitmanip : bigEndianToNative, nativeToBigEndian;
+import std.format : format;
 
 enum Amf0Type : ubyte {
     number = 0x00,
@@ -305,7 +306,7 @@ private AmfValue decodeValue(const(ubyte)[] data, ref size_t pos) {
         case Amf0Type.strictArray:
             return decodeStrictArray(data, pos);
         default:
-            throw new AmfDecodeException("unknown AMF0 type marker: " ~ formatHex(cast(ubyte) marker));
+            throw new AmfDecodeException(format!"unknown AMF0 type marker: 0x%02x"(cast(ubyte) marker));
     }
 }
 
@@ -387,26 +388,8 @@ private bool isObjectEnd(const(ubyte)[] data, size_t pos) {
 
 private void ensureAvailable(const(ubyte)[] data, size_t pos, size_t needed) {
     if (pos + needed > data.length)
-        throw new AmfDecodeException("unexpected end of data: need "
-            ~ formatUint(needed) ~ " bytes at position " ~ formatUint(pos));
-}
-
-private string formatHex(ubyte v) {
-    immutable hexDigits = "0123456789abcdef";
-    return "0x" ~ [hexDigits[v >> 4], hexDigits[v & 0x0f]];
-}
-
-private string formatUint(size_t v) {
-    if (v == 0) return "0";
-    char[] buf;
-    while (v > 0) {
-        buf ~= cast(char)('0' + v % 10);
-        v /= 10;
-    }
-    char[] result;
-    foreach_reverse (c; buf)
-        result ~= c;
-    return cast(string) result;
+        throw new AmfDecodeException(
+            format!"unexpected end of data: need %d bytes at position %d"(needed, pos));
 }
 
 @("Number round-trip")

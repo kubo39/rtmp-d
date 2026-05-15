@@ -11,6 +11,7 @@
 module rtmp.handshake;
 
 import std.bitmanip : bigEndianToNative, nativeToBigEndian;
+import std.conv : to;
 
 enum RTMP_VERSION = 3;
 enum HANDSHAKE_SIZE = 1536;
@@ -84,7 +85,7 @@ struct ServerHandshake {
         const version_ = buffer_[0];
         if (version_ != RTMP_VERSION)
             throw new HandshakeException(
-                "unsupported RTMP version: " ~ formatUbyte(version_));
+                "unsupported RTMP version: " ~ version_.to!string);
 
         // C1: store for S2 echo
         c1Data_[] = buffer_[1 .. 1 + HANDSHAKE_SIZE];
@@ -206,7 +207,7 @@ struct ClientHandshake {
         const version_ = buffer_[0];
         if (version_ != RTMP_VERSION)
             throw new HandshakeException(
-                "unsupported RTMP version: " ~ formatUbyte(version_));
+                "unsupported RTMP version: " ~ version_.to!string);
 
         // S1: store for reference
         auto s1 = buffer_[1 .. 1 + HANDSHAKE_SIZE];
@@ -251,13 +252,6 @@ private void generateRandom(ubyte[] dest) {
     auto rng = Xorshift128(unpredictableSeed);
     foreach (ref b; dest)
         b = uniform!ubyte(rng);
-}
-
-private string formatUbyte(ubyte v) {
-    immutable digits = "0123456789";
-    if (v < 10) return [digits[v]];
-    if (v < 100) return [digits[v / 10], digits[v % 10]];
-    return [digits[v / 100], digits[(v / 10) % 10], digits[v % 10]];
 }
 
 @("Full client-server handshake")
