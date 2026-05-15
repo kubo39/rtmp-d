@@ -1,10 +1,9 @@
 import vibe.core.core : runApplication;
-import rtmp.server : RtmpServer, RtmpServerConfig;
+import rtmp.server : listenRTMP, RtmpServerConfig;
 
 int main()
 {
-    auto config = RtmpServerConfig(host: "0.0.0.0", port: 1935);
-    auto server = new RtmpServer(config);
-    server.listen();
+    auto listener = listenRTMP(RtmpServerConfig(host: "0.0.0.0", port: 1935));
+    scope(exit) listener.stopListening();
     return runApplication();
 }

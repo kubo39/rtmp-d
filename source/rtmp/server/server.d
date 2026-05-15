@@ -10,7 +10,7 @@
  */
 module rtmp.server.server;
 
-import vibe.core.net : listenTCP, TCPConnection;
+import vibe.core.net : listenTCP, TCPConnection, TCPListener;
 import vibe.core.core : runTask, yield;
 import vibe.core.stream : IOMode;
 
@@ -43,47 +43,51 @@ struct RtmpServerConfig {
     ushort port = 1935;
 }
 
-class RtmpServer {
-    private StreamManager streamManager_;
-    private RtmpServerConfig config_;
+struct RtmpListener {
+    private TCPListener[] listeners_;
 
-    this(RtmpServerConfig config = RtmpServerConfig.init) {
-        config_ = config;
-        streamManager_ = new StreamManager();
+    void stopListening() {
+        foreach (ref l; listeners_)
+            l.stopListening();
+        listeners_ = null;
     }
+}
 
-    void listen() {
-        listenTCP(config_.port, &handleConnection, config_.host);
-    }
+RtmpListener listenRTMP(RtmpServerConfig config = RtmpServerConfig.init) {
+    auto streamManager = new StreamManager();
+    auto tcp = listenTCP(config.port, (TCPConnection conn) @safe nothrow {
+        handleConnection(conn, streamManager);
+    }, config.host);
+    return RtmpListener([tcp]);
+}
 
-    private void handleConnection(TCPConnection conn) @trusted nothrow {
+private void handleConnection(TCPConnection conn, StreamManager streamManager) @trusted nothrow {
+    try {
+        auto handler = new ConnectionHandler(streamManager);
+        auto session = ServerSession(handler);
+        bool running = true;
+
+        runTask(&writerTask, conn, handler, &running);
+
+        scope(exit) {
+            running = false;
+            if (conn.connected)
+                conn.close();
+            nothrowCleanup(handler);
+        }
+
         try {
-            auto handler = new ConnectionHandler(streamManager_);
-            auto session = ServerSession(handler);
-            bool running = true;
-
-            runTask(&writerTask, conn, handler, &running);
-
-            scope(exit) {
-                running = false;
-                if (conn.connected)
-                    conn.close();
-                nothrowCleanup(handler);
-            }
-
-            try {
-                ubyte[4096] buf;
-                while (running && conn.connected) {
-                    auto n = conn.read(buf[], IOMode.once);
-                    if (n == 0)
-                        break;
-                    auto response = session.processBytes(buf[0 .. n]);
-                    if (response.length > 0)
-                        conn.write(response);
-                }
-            } catch (Exception) {
+            ubyte[4096] buf;
+            while (running && conn.connected) {
+                auto n = conn.read(buf[], IOMode.once);
+                if (n == 0)
+                    break;
+                auto response = session.processBytes(buf[0 .. n]);
+                if (response.length > 0)
+                    conn.write(response);
             }
         } catch (Exception) {
         }
+    } catch (Exception) {
     }
 }

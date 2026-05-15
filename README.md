@@ -42,8 +42,8 @@ auto response = session.processBytes(incomingData);
 ```d
 import rtmp.server;
 
-auto server = new RtmpServer(RtmpServerConfig(port: 1935));
-server.listen();
+auto listener = listenRTMP(RtmpServerConfig(port: 1935));
+scope(exit) listener.stopListening();
 // Call runApplication() from vibe-core to start the event loop
 ```
 
