@@ -195,7 +195,7 @@ private void encodeValue(ref Appender!(ubyte[]) buf, const AmfValue value) {
     final switch (value.kind) {
         case AmfValue.Kind.number:
             buf ~= Amf0Type.number;
-            buf ~= toNetworkOrder(value.number_)[];
+            buf ~= nativeToBigEndian(value.number_)[];
             break;
         case AmfValue.Kind.boolean:
             buf ~= Amf0Type.boolean;
@@ -257,11 +257,6 @@ private void encodeObjectEntries(ref Appender!(ubyte[]) buf, const AmfObject obj
     buf ~= ubyte(0x09);
 }
 
-private ubyte[8] toNetworkOrder(double value) {
-    ulong bits = *cast(const(ulong)*)&value;
-    return nativeToBigEndian(bits);
-}
-
 // --- Decoding ---
 
 struct DecodeResult {
@@ -318,8 +313,7 @@ private double decodeNumber(const(ubyte)[] data, ref size_t pos) {
     ensureAvailable(data, pos, 8);
     ubyte[8] bytes = data[pos .. pos + 8];
     pos += 8;
-    ulong bits = bigEndianToNative!ulong(bytes);
-    return *cast(double*)&bits;
+    return bigEndianToNative!double(bytes);
 }
 
 private bool decodeBoolean(const(ubyte)[] data, ref size_t pos) {
