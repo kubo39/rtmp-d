@@ -198,22 +198,6 @@ struct ChunkReader {
         }
     }
 
-    /// Feed data and extract all complete messages.
-    RtmpMessage[] processBytes(const(ubyte)[] data) {
-        buffer_ ~= data;
-        RtmpMessage[] messages;
-        while (true) {
-            auto result = readOneChunk();
-            if (result.kind == ChunkReadResult.Kind.completedMessage)
-                messages ~= result.msg;
-            else if (result.kind == ChunkReadResult.Kind.consumedChunk)
-                continue;
-            else
-                break;
-        }
-        return messages;
-    }
-
     private ChunkReadResult readOneChunk() {
         if (buffer_.length == 0)
             return ChunkReadResult(ChunkReadResult.Kind.needMoreData);
@@ -423,6 +407,18 @@ private void write24(ref Appender!(ubyte[]) buf, uint value) {
     buf ~= cast(ubyte)(value & 0xFF);
 }
 
+version(unittest)
+{
+    private RtmpMessage[] drainAll(ref ChunkReader reader, const(ubyte)[] data) {
+        reader.addData(data);
+        RtmpMessage[] messages;
+        RtmpMessage msg;
+        while (reader.readMessage(msg))
+            messages ~= msg;
+        return messages;
+    }
+}
+
 @("Basic header round-trip")
 unittest {
     void testBasicHeader(uint csid) {
@@ -521,7 +517,7 @@ unittest {
     auto msg = RtmpMessage(9, 1, 1000, payload);
 
     auto encoded = writer.writeMessage(6, msg);
-    auto messages = reader.processBytes(encoded);
+    auto messages = drainAll(reader, encoded);
     assert(messages.length == 1);
     assert(messages[0].typeId == 9);
     assert(messages[0].streamId == 1);
@@ -541,7 +537,7 @@ unittest {
     auto msg = RtmpMessage(9, 1, 500, payload);
 
     auto encoded = writer.writeMessage(6, msg);
-    auto messages = reader.processBytes(encoded);
+    auto messages = drainAll(reader, encoded);
     assert(messages.length == 1);
     assert(messages[0].payload == payload);
 }
@@ -556,7 +552,7 @@ unittest {
     auto msg = RtmpMessage(8, 1, 0, payload);
 
     auto encoded = writer.writeMessage(3, msg);
-    auto messages = reader.processBytes(encoded);
+    auto messages = drainAll(reader, encoded);
     assert(messages.length == 1);
     assert(messages[0].payload == payload);
 }
@@ -573,7 +569,7 @@ unittest {
     auto msg = RtmpMessage(9, 1, 0, payload);
 
     auto encoded = writer.writeMessage(6, msg);
-    auto messages = reader.processBytes(encoded);
+    auto messages = drainAll(reader, encoded);
     assert(messages.length == 1);
     assert(messages[0].payload == payload);
 }
@@ -591,7 +587,7 @@ unittest {
     auto e1 = writer.writeMessage(6, msg1);
     auto e2 = writer.writeMessage(6, msg2);
 
-    auto messages = reader.processBytes(e1 ~ e2);
+    auto messages = drainAll(reader, e1 ~ e2);
     assert(messages.length == 2);
     assert(messages[0].payload == p1);
     assert(messages[0].timestamp == 100);
@@ -610,7 +606,7 @@ unittest {
     auto e1 = writer.writeMessage(6, msg1); // video on csid 6
     auto e2 = writer.writeMessage(4, msg2); // audio on csid 4
 
-    auto messages = reader.processBytes(e1 ~ e2);
+    auto messages = drainAll(reader, e1 ~ e2);
     assert(messages.length == 2);
     assert(messages[0].typeId == 9);
     assert(messages[0].payload == [0xAA]);
@@ -625,7 +621,7 @@ unittest {
 
     auto msg = RtmpMessage(20, 0, 0, []);
     auto encoded = writer.writeMessage(3, msg);
-    auto messages = reader.processBytes(encoded);
+    auto messages = drainAll(reader, encoded);
     assert(messages.length == 1);
     assert(messages[0].payload.length == 0);
 }
@@ -642,8 +638,11 @@ unittest {
 
     // Feed one byte at a time
     RtmpMessage[] messages;
+    RtmpMessage out_msg;
     foreach (i; 0 .. encoded.length) {
-        messages ~= reader.processBytes(encoded[i .. i + 1]);
+        reader.addData(encoded[i .. i + 1]);
+        while (reader.readMessage(out_msg))
+            messages ~= out_msg;
     }
     assert(messages.length == 1);
     assert(messages[0].payload == payload);
@@ -657,7 +656,7 @@ unittest {
     ubyte[] payload = [1, 2, 3];
     auto msg = RtmpMessage(9, 1, 0x1000000, payload);
     auto encoded = writer.writeMessage(6, msg);
-    auto messages = reader.processBytes(encoded);
+    auto messages = drainAll(reader, encoded);
     assert(messages.length == 1);
     assert(messages[0].timestamp == 0x1000000);
 }
@@ -672,7 +671,7 @@ unittest {
         b = cast(ubyte)(i % 251);
     auto msg = RtmpMessage(9, 1, 0x2000000, payload);
     auto encoded = writer.writeMessage(6, msg);
-    auto messages = reader.processBytes(encoded);
+    auto messages = drainAll(reader, encoded);
     assert(messages.length == 1);
     assert(messages[0].timestamp == 0x2000000);
     assert(messages[0].payload == payload);
@@ -690,7 +689,7 @@ unittest {
     auto msg2 = RtmpMessage(9, 1, 500, p1);
     auto enc2 = writer.writeMessage(6, msg2);
     // Must be decodable (fmt 0 with absolute timestamp)
-    auto messages = reader.processBytes(enc1 ~ enc2);
+    auto messages = drainAll(reader, enc1 ~ enc2);
     assert(messages.length == 2);
     assert(messages[0].timestamp == 1000);
     assert(messages[1].timestamp == 500);
