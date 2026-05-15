@@ -27,12 +27,18 @@ struct ClientSession {
         ready,
     }
 
+    private enum PendingKind {
+        connect,
+        createStream,
+    }
+
     private State state_ = State.init_;
     private ClientHandshake handshake_;
     private ChunkReader reader_;
     private ChunkWriter writer_;
 
-    private double nextTxId_ = 1.0;
+    private uint nextTxId_ = 1;
+    private PendingKind[uint] pendingRequests_;
     private bool connected_;
     private uint lastCreatedStreamId_;
 
@@ -79,8 +85,10 @@ struct ClientSession {
             AmfKeyValue("app", AmfValue(app)),
             AmfKeyValue("tcUrl", AmfValue(tcUrl)),
         ]);
+        const txId = nextTxId_++;
+        pendingRequests_[txId] = PendingKind.connect;
         auto payload = encodeCommand(CommandMessage(
-            commandName: "connect", transactionId: nextTxId_++, commandObject: AmfValue(cmdObj)));
+            commandName: "connect", transactionId: cast(double) txId, commandObject: AmfValue(cmdObj)));
         state_ = State.waitConnectResult;
         return writeCommand(0, payload);
     }
@@ -88,8 +96,10 @@ struct ClientSession {
     ubyte[] createStream() {
         if (state_ != State.ready)
             throw new SessionException("not ready");
+        const txId = nextTxId_++;
+        pendingRequests_[txId] = PendingKind.createStream;
         auto payload = encodeCommand(CommandMessage(
-            commandName: "createStream", transactionId: nextTxId_++, commandObject: AmfValue.null_()));
+            commandName: "createStream", transactionId: cast(double) txId, commandObject: AmfValue.null_()));
         return writeCommand(0, payload);
     }
 
@@ -185,12 +195,21 @@ struct ClientSession {
         auto cmd = decodeCommand(msg.payload);
 
         if (cmd.commandName == "_result") {
-            if (state_ == State.waitConnectResult) {
-                connected_ = true;
-                state_ = State.ready;
-            } else if (cmd.args.length > 0 && cmd.args[0].kind == AmfValue.Kind.number) {
-                lastCreatedStreamId_ = cast(uint) cmd.args[0].number;
+            const txId = cast(uint) cmd.transactionId;
+            auto kind = txId in pendingRequests_;
+            if (kind is null)
+                return null;
+            final switch (*kind) {
+                case PendingKind.connect:
+                    connected_ = true;
+                    state_ = State.ready;
+                    break;
+                case PendingKind.createStream:
+                    if (cmd.args.length > 0 && cmd.args[0].kind == AmfValue.Kind.number)
+                        lastCreatedStreamId_ = cast(uint) cmd.args[0].number;
+                    break;
             }
+            pendingRequests_.remove(txId);
         }
         return null;
     }
