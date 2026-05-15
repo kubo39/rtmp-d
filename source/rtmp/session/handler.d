@@ -12,12 +12,6 @@ module rtmp.session.handler;
 
 import rtmp.message;
 
-class SessionException : Exception {
-    this(string msg, string file = __FILE__, size_t line = __LINE__) {
-        super(msg, file, line);
-    }
-}
-
 struct Reply {
     bool accepted;
     string code;

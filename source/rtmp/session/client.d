@@ -16,6 +16,7 @@ import rtmp.amf;
 import rtmp.handshake;
 import rtmp.chunk;
 import rtmp.message;
+import rtmp.session.exception;
 import rtmp.session.handler;
 
 struct ClientSession {

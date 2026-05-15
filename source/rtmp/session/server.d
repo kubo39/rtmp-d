@@ -16,6 +16,7 @@ import rtmp.amf;
 import rtmp.handshake;
 import rtmp.chunk;
 import rtmp.message;
+import rtmp.session.exception;
 import rtmp.session.handler;
 private enum SERVER_CHUNK_SIZE = 4096;
 private enum DEFAULT_WINDOW_ACK_SIZE = 2_500_000;
