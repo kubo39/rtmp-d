@@ -51,6 +51,8 @@ struct ServerHandshake {
     private ubyte[] buffer_;
     private ubyte[HANDSHAKE_SIZE] s1Data_;
     private ubyte[HANDSHAKE_SIZE] c1Data_;
+    // RTMP 1.0 §5.2: time field need not be the actual time and is not
+    // validated by peers. null source falls back to 0.
     private uint delegate() timeSource_;
 
     this(uint delegate() timeSource) {
@@ -154,6 +156,7 @@ struct ClientHandshake {
     private State state_ = State.sendC0C1;
     private ubyte[] buffer_;
     private ubyte[HANDSHAKE_SIZE] c1Data_;
+    // See ServerHandshake.timeSource_ for rationale.
     private uint delegate() timeSource_;
 
     this(uint delegate() timeSource) {
