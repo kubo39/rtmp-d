@@ -19,7 +19,7 @@ import rtmp.server.stream_manager : StreamManager, Subscriber;
 class ConnectionHandler : ServerHandler, Subscriber {
     private StreamManager streamManager_;
     private ChunkWriter mediaWriter_;
-    private ubyte[][] writeQueue_;
+    private immutable(ubyte)[][] writeQueue_;
     private string publishingStream_;
     private string playingStream_;
     private uint playStreamId_;
@@ -75,15 +75,15 @@ class ConnectionHandler : ServerHandler, Subscriber {
 
     void onData(uint streamId, uint timestamp, DataMessage data) {}
 
-    void enqueueMedia(const(ubyte)[] data) {
-        writeQueue_ ~= data.dup;
+    void enqueueMedia(immutable(ubyte)[] data) {
+        writeQueue_ ~= data;
     }
 
     bool hasQueuedData() const {
         return writeQueue_.length > 0;
     }
 
-    ubyte[][] drainWriteQueue() {
+    immutable(ubyte)[][] drainWriteQueue() {
         auto queued = writeQueue_;
         writeQueue_ = null;
         return queued;

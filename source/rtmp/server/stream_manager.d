@@ -11,11 +11,12 @@
  */
 module rtmp.server.stream_manager;
 
+import std.exception : assumeUnique;
 import rtmp.chunk : ChunkWriter, RtmpMessage, PROTOCOL_CHUNK_STREAM_ID;
 import rtmp.message;
 
 interface Subscriber {
-    void enqueueMedia(const(ubyte)[] data);
+    void enqueueMedia(immutable(ubyte)[] data);
 }
 
 class Stream {
@@ -41,7 +42,7 @@ class Stream {
         writer.setChunkSize(4096);
         const csid = (typeId == MessageTypeId.audio) ? AUDIO_CSID : VIDEO_CSID;
         auto msg = RtmpMessage(typeId: typeId, streamId: 1, timestamp: timestamp, payload: payload.dup);
-        auto encoded = writer.writeMessage(csid, msg);
+        auto encoded = writer.writeMessage(csid, msg).assumeUnique;
         foreach (sub; subscribers_)
             sub.enqueueMedia(encoded);
     }
@@ -93,7 +94,7 @@ class StreamManager {
             auto msg = RtmpMessage(
                 typeId: cast(ubyte) MessageTypeId.userControl,
                 streamId: 0, timestamp: 0, payload: payload);
-            auto encoded = writer.writeMessage(PROTOCOL_CHUNK_STREAM_ID, msg);
+            auto encoded = writer.writeMessage(PROTOCOL_CHUNK_STREAM_ID, msg).assumeUnique;
             foreach (sub; stream.subscribers_)
                 sub.enqueueMedia(encoded);
         }
@@ -124,9 +125,9 @@ class StreamManager {
 version(unittest)
 {
     private class MockSubscriber : Subscriber {
-        ubyte[][] received;
-        void enqueueMedia(const(ubyte)[] data) {
-            received ~= data.dup;
+        immutable(ubyte)[][] received;
+        void enqueueMedia(immutable(ubyte)[] data) {
+            received ~= data;
         }
     }
 }
